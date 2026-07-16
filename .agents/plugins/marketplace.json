@@ -1,0 +1,21 @@
+{
+  "name": "architectural-render-guard",
+  "interface": {
+    "displayName": "Architectural Render Guard"
+  },
+  "plugins": [
+    {
+      "name": "architectural-render-guard",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/m174460635/architectural-render-guard.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
