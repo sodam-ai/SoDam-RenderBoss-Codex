@@ -490,7 +490,8 @@ class GptStreamRequestError(RuntimeError):
 
 def gpt_multipart_files(args: argparse.Namespace) -> list[tuple[str, Any]]:
     files: list[tuple[str, Any]] = []
-    image_field = "image[]" if len(args.image) > 1 else "image"
+    # The official image edit examples use image[] even for a single input.
+    image_field = "image[]"
     for image_path in args.image:
         files.append((image_field, (image_path.name, image_path.open("rb"), mime_type(image_path))))
     if args.mask:
