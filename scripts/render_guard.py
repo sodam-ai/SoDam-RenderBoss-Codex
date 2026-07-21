@@ -523,7 +523,9 @@ def call_gpt(
             files=files,
             data=data,
             stream=True,
-            timeout=(30, args.timeout),
+            # requests applies the connect-side timeout to multipart writes on
+            # some platforms; keep upload and SSE idle timeouts consistent.
+            timeout=args.timeout,
         )
         r.raise_for_status()
         content: bytes | None = None
