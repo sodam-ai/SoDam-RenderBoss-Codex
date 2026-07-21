@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 from PIL import Image
 
@@ -152,6 +153,56 @@ class GeometryTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "instead of the requested 3:2"):
                 render_guard.validate_generated_aspect_ratio(invalid_path, geometry, "Test")
+
+
+class GptStreamTests(unittest.TestCase):
+    class FakeResponse:
+        def __init__(self, lines: list[str]) -> None:
+            self.lines = lines
+
+        def iter_lines(self, decode_unicode: bool = False) -> Any:
+            del decode_unicode
+            return iter(self.lines)
+
+    def test_parses_image_edit_sse_events(self) -> None:
+        response = self.FakeResponse(
+            [
+                "event: image_edit.partial_image",
+                'data: {"type":"image_edit.partial_image","b64_json":"partial","partial_image_index":0}',
+                "",
+                "event: image_edit.completed",
+                'data: {"type":"image_edit.completed","b64_json":"final"}',
+                "",
+            ]
+        )
+
+        events = list(render_guard.iter_gpt_stream_events(response))
+
+        self.assertEqual(
+            [event_type for event_type, _ in events],
+            ["image_edit.partial_image", "image_edit.completed"],
+        )
+        self.assertEqual(events[0][1]["partial_image_index"], 0)
+
+    def test_parses_non_streaming_json_fallback(self) -> None:
+        response = self.FakeResponse(['{"data":[{"b64_json":"final"}]}'])
+
+        events = list(render_guard.iter_gpt_stream_events(response))
+
+        self.assertEqual(events, [("", {"data": [{"b64_json": "final"}]})])
+
+    def test_uses_sse_event_name_when_payload_has_no_type(self) -> None:
+        response = self.FakeResponse(
+            [
+                "event: image_edit.completed",
+                'data: {"b64_json":"final"}',
+                "",
+            ]
+        )
+
+        events = list(render_guard.iter_gpt_stream_events(response))
+
+        self.assertEqual(events[0][0], "image_edit.completed")
 
 
 if __name__ == "__main__":

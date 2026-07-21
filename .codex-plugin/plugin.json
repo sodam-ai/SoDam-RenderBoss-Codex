@@ -1,6 +1,6 @@
 {
   "name": "architectural-render-guard",
-  "version": "0.1.0+codex.20260716055047",
+  "version": "0.1.0+codex.20260721182010",
   "description": "Generate 2K architectural image-to-image renders with automatic official aspect-ratio selection and strict building preservation using GPT and Gemini image models.",
   "author": {
     "name": "m174460635"

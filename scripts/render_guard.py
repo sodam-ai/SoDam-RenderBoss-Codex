@@ -35,6 +35,7 @@ PROVIDER_KEY_ENV_NAMES = {
 DEFAULT_PREVIEW_MAX_EDGE = 960
 DEFAULT_PREVIEW_QUALITY = 72
 DEFAULT_RESOLUTION = "2K"
+DEFAULT_GPT_PARTIAL_IMAGES = 2
 SUPPORTED_ASPECT_RATIOS = (
     "1:1",
     "2:3",
@@ -388,6 +389,79 @@ def parse_image_from_openai_style(payload: dict[str, Any], session: requests.Ses
     raise ValueError("no b64_json/image/url in image response")
 
 
+def image_bytes_from_gpt_payload(
+    payload: dict[str, Any],
+    session: requests.Session,
+    timeout: int,
+) -> bytes:
+    b64 = payload.get("b64_json") or payload.get("image")
+    if isinstance(b64, str):
+        return base64.b64decode(b64)
+    return parse_image_from_openai_style(payload, session, timeout)
+
+
+def iter_gpt_stream_events(
+    response: requests.Response,
+) -> Any:
+    """Yield (event type, JSON payload) from SSE or a normal JSON response."""
+    event_name = ""
+    data_lines: list[str] = []
+    raw_lines: list[str] = []
+    saw_sse = False
+    yielded_event = False
+
+    def flush_event() -> tuple[str, dict[str, Any]] | None:
+        nonlocal event_name, data_lines
+        if not data_lines:
+            event_name = ""
+            return None
+        current_event_name = event_name
+        raw_data = "\n".join(data_lines).strip()
+        event_name, data_lines = "", []
+        if not raw_data or raw_data == "[DONE]":
+            return None
+        payload = json.loads(raw_data)
+        if not isinstance(payload, dict):
+            raise ValueError("GPT stream event data must be a JSON object")
+        return str(payload.get("type") or current_event_name or ""), payload
+
+    for raw_line in response.iter_lines(decode_unicode=True):
+        line = raw_line.decode("utf-8", errors="replace") if isinstance(raw_line, bytes) else raw_line
+        raw_lines.append(line)
+        if not line.strip():
+            event = flush_event()
+            if event:
+                yielded_event = True
+                yield event
+            continue
+        if line.startswith(":"):
+            continue
+        if line.startswith("event:"):
+            event_name = line.split(":", 1)[1].strip()
+            saw_sse = True
+            continue
+        if line.startswith("data:"):
+            data_lines.append(line.split(":", 1)[1].lstrip())
+            saw_sse = True
+            continue
+        if data_lines or event_name:
+            data_lines.append(line)
+            saw_sse = True
+
+    event = flush_event()
+    if event:
+        yielded_event = True
+        yield event
+
+    if not yielded_event and not saw_sse:
+        raw_data = "\n".join(raw_lines).strip()
+        if raw_data:
+            payload = json.loads(raw_data)
+            if not isinstance(payload, dict):
+                raise ValueError("GPT response must be a JSON object")
+            yield str(payload.get("type") or ""), payload
+
+
 def find_b64_images(obj: Any) -> list[str]:
     found: list[str] = []
     if isinstance(obj, dict):
@@ -413,7 +487,7 @@ def call_gpt(
     key: str,
     prompt: str,
     geometry: OutputGeometry,
-) -> Path:
+) -> tuple[Path, dict[str, Any]]:
     url = f"{args.gpt_base_url.rstrip('/')}/v1/images/edits"
     files: list[tuple[str, Any]] = []
     # OpenAI-compatible image edits expect arrays as image[] in multipart form data.
@@ -427,24 +501,69 @@ def call_gpt(
         "prompt": prompt,
         "size": geometry.gpt_size,
         "quality": args.quality,
-        "response_format": "b64_json",
+        "stream": "true",
+        "partial_images": str(args.gpt_partial_images),
     }
+    stream_info: dict[str, Any] = {
+        "requested": True,
+        "partial_images_requested": args.gpt_partial_images,
+        "events": [],
+        "partial_images_received": 0,
+        "response_mode": "",
+        "partial_previews": [],
+    }
+    r: requests.Response | None = None
     try:
         r = session.post(
             url,
-            headers={"Authorization": f"Bearer {key}"},
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Accept": "text/event-stream, application/json",
+            },
             files=files,
             data=data,
-            timeout=args.timeout,
+            stream=True,
+            timeout=(30, args.timeout),
         )
         r.raise_for_status()
-        content = parse_image_from_openai_style(r.json(), session, args.timeout)
+        content: bytes | None = None
+        response_mode = "sse"
+        for event_type, payload in iter_gpt_stream_events(r):
+            stream_info["events"].append(event_type or "json")
+            if event_type == "image_edit.partial_image":
+                b64 = payload.get("b64_json") or payload.get("image")
+                if isinstance(b64, str):
+                    partial_index = payload.get(
+                        "partial_image_index",
+                        stream_info["partial_images_received"],
+                    )
+                    partial_path = (
+                        args.out_dir
+                        / "_previews"
+                        / f"{args.prefix}_gpt_partial_{partial_index}_attempt{args.attempt}.png"
+                    )
+                    partial_path.parent.mkdir(parents=True, exist_ok=True)
+                    partial_path.write_bytes(base64.b64decode(b64))
+                    stream_info["partial_previews"].append(str(partial_path))
+                    stream_info["partial_images_received"] += 1
+            elif event_type == "image_edit.completed":
+                content = image_bytes_from_gpt_payload(payload, session, args.timeout)
+            elif payload.get("data"):
+                response_mode = "json"
+                content = image_bytes_from_gpt_payload(payload, session, args.timeout)
+        stream_info["response_mode"] = response_mode
+        if content is None:
+            raise ValueError(
+                "GPT stream ended without image_edit.completed or a standard image response"
+            )
     finally:
+        if r is not None:
+            r.close()
         for _, file_tuple in files:
             file_tuple[1].close()
     out = args.out_dir / f"{args.prefix}_gpt_{args.gpt_model}_attempt{args.attempt}.png"
     out.write_bytes(content)
-    return out
+    return out, stream_info
 
 
 def call_gemini(
@@ -556,6 +675,13 @@ def main() -> int:
         help="Legacy GPT pixel-size override. Gemini still uses --aspect-ratio and --resolution.",
     )
     parser.add_argument("--quality", choices=["low", "medium", "high", "auto"], default="low")
+    parser.add_argument(
+        "--gpt-partial-images",
+        type=int,
+        choices=range(0, 4),
+        default=DEFAULT_GPT_PARTIAL_IMAGES,
+        help="Number of GPT streaming partial images to request (0-3).",
+    )
     parser.add_argument("--timeout", type=int, default=240)
     parser.add_argument("--attempt", type=int, default=1)
     args = parser.parse_args()
@@ -635,11 +761,15 @@ def main() -> int:
     outputs: dict[str, str] = {}
     output_dimensions: dict[str, dict[str, int]] = {}
     errors: dict[str, str] = {}
+    gpt_stream: dict[str, Any] = {
+        "requested": args.models in {"both", "gpt"},
+        "partial_images_requested": args.gpt_partial_images,
+    }
     started = time.time()
 
     if args.models in {"both", "gpt"}:
         try:
-            output_path = call_gpt(args, session, gpt_key, prompt, geometry)
+            output_path, gpt_stream = call_gpt(args, session, gpt_key, prompt, geometry)
             width, height = validate_generated_aspect_ratio(output_path, geometry, "GPT")
             outputs["gpt"] = str(output_path)
             output_dimensions["gpt"] = {"width": width, "height": height}
@@ -685,6 +815,7 @@ def main() -> int:
         "output_geometry": asdict(geometry),
         "output_dimensions": output_dimensions,
         "gemini_geometry_mode": gemini_geometry_mode,
+        "gpt_stream": gpt_stream,
         "prompt_file": str(prompt_path),
         "outputs": outputs,
         "previews": previews,
