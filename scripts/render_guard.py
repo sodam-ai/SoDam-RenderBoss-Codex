@@ -481,56 +481,77 @@ def find_b64_images(obj: Any) -> list[str]:
     return found
 
 
-def call_gpt(
-    args: argparse.Namespace,
-    session: requests.Session,
-    key: str,
-    prompt: str,
-    geometry: OutputGeometry,
-) -> tuple[Path, dict[str, Any]]:
-    url = f"{args.gpt_base_url.rstrip('/')}/v1/images/edits"
+class GptStreamRequestError(RuntimeError):
+    def __init__(self, cause: Exception, info: dict[str, Any]) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+        self.info = info
+
+
+def gpt_multipart_files(args: argparse.Namespace) -> list[tuple[str, Any]]:
     files: list[tuple[str, Any]] = []
-    # OpenAI-compatible image edits expect arrays as image[] in multipart form data.
     image_field = "image[]" if len(args.image) > 1 else "image"
     for image_path in args.image:
         files.append((image_field, (image_path.name, image_path.open("rb"), mime_type(image_path))))
     if args.mask:
         files.append(("mask", (args.mask.name, args.mask.open("rb"), mime_type(args.mask))))
+    return files
+
+
+def request_gpt_image(
+    args: argparse.Namespace,
+    session: requests.Session,
+    key: str,
+    prompt: str,
+    geometry: OutputGeometry,
+    stream: bool,
+) -> tuple[bytes, dict[str, Any]]:
+    url = f"{args.gpt_base_url.rstrip('/')}/v1/images/edits"
+    files = gpt_multipart_files(args)
     data = {
         "model": args.gpt_model,
         "prompt": prompt,
         "size": geometry.gpt_size,
         "quality": args.quality,
-        "stream": "true",
-        "partial_images": str(args.gpt_partial_images),
     }
+    if stream:
+        data.update(
+            {
+                "stream": "true",
+                "partial_images": str(args.gpt_partial_images),
+            }
+        )
+    else:
+        data["response_format"] = "b64_json"
     stream_info: dict[str, Any] = {
-        "requested": True,
-        "partial_images_requested": args.gpt_partial_images,
+        "requested": stream,
+        "partial_images_requested": args.gpt_partial_images if stream else 0,
         "events": [],
         "partial_images_received": 0,
-        "response_mode": "",
+        "response_mode": "sse" if stream else "json",
         "partial_previews": [],
     }
-    r: requests.Response | None = None
+    response: requests.Response | None = None
     try:
-        r = session.post(
+        response = session.post(
             url,
             headers={
                 "Authorization": f"Bearer {key}",
-                "Accept": "text/event-stream, application/json",
+                "Accept": "text/event-stream, application/json" if stream else "application/json",
             },
             files=files,
             data=data,
-            stream=True,
+            stream=stream,
             # requests applies the connect-side timeout to multipart writes on
             # some platforms; keep upload and SSE idle timeouts consistent.
             timeout=args.timeout,
         )
-        r.raise_for_status()
+        response.raise_for_status()
+        if not stream:
+            return image_bytes_from_gpt_payload(response.json(), session, args.timeout), stream_info
+
         content: bytes | None = None
-        response_mode = "sse"
-        for event_type, payload in iter_gpt_stream_events(r):
+        for event_type, payload in iter_gpt_stream_events(response):
             stream_info["events"].append(event_type or "json")
             if event_type == "image_edit.partial_image":
                 b64 = payload.get("b64_json") or payload.get("image")
@@ -551,18 +572,59 @@ def call_gpt(
             elif event_type == "image_edit.completed":
                 content = image_bytes_from_gpt_payload(payload, session, args.timeout)
             elif payload.get("data"):
-                response_mode = "json"
+                stream_info["response_mode"] = "json"
                 content = image_bytes_from_gpt_payload(payload, session, args.timeout)
-        stream_info["response_mode"] = response_mode
         if content is None:
             raise ValueError(
                 "GPT stream ended without image_edit.completed or a standard image response"
             )
+        return content, stream_info
+    except Exception as exc:
+        if stream:
+            raise GptStreamRequestError(exc, stream_info) from exc
+        raise
     finally:
-        if r is not None:
-            r.close()
+        if response is not None:
+            response.close()
         for _, file_tuple in files:
             file_tuple[1].close()
+
+
+def call_gpt(
+    args: argparse.Namespace,
+    session: requests.Session,
+    key: str,
+    prompt: str,
+    geometry: OutputGeometry,
+) -> tuple[Path, dict[str, Any]]:
+    try:
+        content, stream_info = request_gpt_image(
+            args,
+            session,
+            key,
+            prompt,
+            geometry,
+            stream=True,
+        )
+    except GptStreamRequestError as exc:
+        if not args.gpt_stream_fallback or exc.info["events"]:
+            raise
+        content, stream_info = request_gpt_image(
+            args,
+            session,
+            key,
+            prompt,
+            geometry,
+            stream=False,
+        )
+        stream_info.update(
+            {
+                "requested": True,
+                "fallback_used": True,
+                "fallback_reason": str(exc.cause),
+                "stream_events_before_fallback": exc.info["events"],
+            }
+        )
     out = args.out_dir / f"{args.prefix}_gpt_{args.gpt_model}_attempt{args.attempt}.png"
     out.write_bytes(content)
     return out, stream_info
@@ -684,6 +746,13 @@ def main() -> int:
         default=DEFAULT_GPT_PARTIAL_IMAGES,
         help="Number of GPT streaming partial images to request (0-3).",
     )
+    parser.add_argument(
+        "--no-gpt-stream-fallback",
+        dest="gpt_stream_fallback",
+        action="store_false",
+        default=True,
+        help="Fail instead of retrying once without SSE when no stream event is received.",
+    )
     parser.add_argument("--timeout", type=int, default=240)
     parser.add_argument("--attempt", type=int, default=1)
     args = parser.parse_args()
@@ -766,6 +835,7 @@ def main() -> int:
     gpt_stream: dict[str, Any] = {
         "requested": args.models in {"both", "gpt"},
         "partial_images_requested": args.gpt_partial_images,
+        "fallback_enabled": args.gpt_stream_fallback,
     }
     started = time.time()
 
