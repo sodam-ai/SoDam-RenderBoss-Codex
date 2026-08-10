@@ -1,6 +1,6 @@
 {
   "name": "architectural-render-guard",
-  "version": "0.1.0+codex.20260810145524",
+  "version": "0.1.0+codex.20260810150730",
   "description": "Generate or edit 2K architectural renders with automatic official aspect-ratio selection, first-use environment checks, local key storage, and strict building preservation using GPT and Gemini image models.",
   "author": {
     "name": "m174460635"

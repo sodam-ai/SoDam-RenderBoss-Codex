@@ -838,14 +838,17 @@ def request_gpt_image(
                 "Authorization": f"Bearer {key}",
                 "Accept": "text/event-stream, application/json" if stream else "application/json",
             },
-            "data": data,
             "stream": stream,
             # requests applies the connect-side timeout to multipart writes on
             # some platforms; keep upload and SSE idle timeouts consistent.
             "timeout": args.timeout,
         }
         if files:
+            request_kwargs["data"] = data
             request_kwargs["files"] = files
+        else:
+            request_kwargs["headers"]["Content-Type"] = "application/json"
+            request_kwargs["json"] = data
         response = session.post(
             url,
             **request_kwargs,

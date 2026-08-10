@@ -288,6 +288,12 @@ class GptStreamTests(unittest.TestCase):
         self.assertEqual(content, b"fake-image")
         self.assertTrue(session.last_url.endswith("/v1/images/generations"))
         self.assertNotIn("files", session.last_kwargs)
+        self.assertNotIn("data", session.last_kwargs)
+        self.assertEqual(session.last_kwargs["json"]["model"], "gpt-image-2-x")
+        self.assertEqual(
+            session.last_kwargs["headers"]["Content-Type"],
+            "application/json",
+        )
         self.assertFalse(stream_info["requested"])
         self.assertEqual(stream_info["mode"], "generation")
 
