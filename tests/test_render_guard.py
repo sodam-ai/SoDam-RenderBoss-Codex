@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib.util
+import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +62,22 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(geometry.aspect_ratio, "16:9")
         self.assertEqual(geometry.gpt_size, "2752x1536")
         self.assertEqual(geometry.selection_reason, "explicit --aspect-ratio")
+
+    def test_text_generation_defaults_to_2k_landscape(self) -> None:
+        args = argparse.Namespace(
+            image=[],
+            aspect_ratio="auto",
+            resolution="2K",
+            size=None,
+        )
+
+        geometry = render_guard.resolve_output_geometry(args)
+
+        self.assertIsNone(geometry.source_width)
+        self.assertIsNone(geometry.source_height)
+        self.assertEqual(geometry.aspect_ratio, "16:9")
+        self.assertEqual(geometry.resolution, "2K")
+        self.assertEqual(geometry.gpt_size, "2752x1536")
 
     def test_legacy_size_is_validated_and_drives_gpt(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -129,8 +148,15 @@ class GeometryTests(unittest.TestCase):
                 "https://api.iiiiitoken.com",
                 "auto",
             ),
-            "image-config",
+                "image-config",
         )
+
+    def test_supported_generation_formats_include_default(self) -> None:
+        formats = render_guard.supported_generation_formats()
+
+        self.assertEqual(formats["default"]["resolution"], "2K")
+        self.assertEqual(formats["default"]["aspect_ratio"], "16:9")
+        self.assertIn("21:9", formats["shared_provider_safe_formats"]["aspect_ratios"])
 
     def test_generated_aspect_ratio_is_enforced(self) -> None:
         geometry = render_guard.OutputGeometry(
@@ -203,6 +229,79 @@ class GptStreamTests(unittest.TestCase):
         events = list(render_guard.iter_gpt_stream_events(response))
 
         self.assertEqual(events[0][0], "image_edit.completed")
+
+    def test_text_generation_uses_generations_endpoint(self) -> None:
+        class FakeResponse:
+            def __init__(self) -> None:
+                self.closed = False
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, Any]:
+                b64 = base64.b64encode(b"fake-image").decode("ascii")
+                return {"data": [{"b64_json": b64}]}
+
+            def close(self) -> None:
+                self.closed = True
+
+        class FakeSession:
+            def __init__(self) -> None:
+                self.last_url = ""
+                self.last_kwargs: dict[str, Any] = {}
+
+            def post(self, url: str, **kwargs: Any) -> FakeResponse:
+                self.last_url = url
+                self.last_kwargs = kwargs
+                return FakeResponse()
+
+        geometry = render_guard.OutputGeometry(
+            source_width=None,
+            source_height=None,
+            aspect_ratio="16:9",
+            resolution="2K",
+            gpt_size="2752x1536",
+            selection_reason="test",
+        )
+        args = argparse.Namespace(
+            image=[],
+            gpt_base_url="https://api.iiiiitoken.com",
+            gpt_model="gpt-image-2-x",
+            quality="low",
+            gpt_partial_images=2,
+            timeout=30,
+            out_dir=Path("."),
+            prefix="test",
+            attempt=1,
+        )
+        session = FakeSession()
+
+        content, stream_info = render_guard.request_gpt_image(
+            args,
+            session,
+            "key",
+            "prompt",
+            geometry,
+            stream=True,
+        )
+
+        self.assertEqual(content, b"fake-image")
+        self.assertTrue(session.last_url.endswith("/v1/images/generations"))
+        self.assertNotIn("files", session.last_kwargs)
+        self.assertFalse(stream_info["requested"])
+        self.assertEqual(stream_info["mode"], "generation")
+
+
+class KeyTests(unittest.TestCase):
+    def test_shared_key_file_is_used_for_both_providers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch.dict(os.environ, {"CODEX_HOME": temp_dir}, clear=False):
+                key_path = render_guard.key_file_path("shared")
+                key_path.parent.mkdir(parents=True, exist_ok=True)
+                key_path.write_text("shared-test-key\n", encoding="utf-8")
+
+                self.assertEqual(render_guard.read_key("gpt"), "shared-test-key")
+                self.assertEqual(render_guard.read_key("gemini"), "shared-test-key")
 
 
 if __name__ == "__main__":

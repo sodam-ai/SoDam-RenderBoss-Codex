@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Call GPT and Gemini image-to-image endpoints for guarded architecture renders."""
+"""Call GPT and Gemini image endpoints for guarded architecture renders."""
 
 from __future__ import annotations
 
 import argparse
 import base64
+import importlib
+import importlib.util
 import json
 import math
 import mimetypes
 import os
 import socket
+import subprocess
 import sys
 import time
 import warnings
@@ -19,18 +22,26 @@ from typing import Any
 from urllib.parse import urlparse
 
 warnings.filterwarnings("ignore", category=Warning, module="requests")
-import requests
-from PIL import Image, ImageOps
-from urllib3.util import connection as urllib3_connection
+requests: Any = None
+Image: Any = None
+ImageOps: Any = None
+urllib3_connection: Any = None
 
 
 DEFAULT_BASE_URL = "https://api.iiiiitoken.com"
-DEFAULT_GPT_BASE_URL = "https://ynk-yyds.cc.cd"
-DEFAULT_GPT_MODEL = "gpt-image-2"
-DEFAULT_GEMINI_MODEL = "gemini-3-pro-image"
+DEFAULT_GPT_BASE_URL = DEFAULT_BASE_URL
+DEFAULT_GPT_MODEL = "gpt-image-2-x"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-image"
+DEFAULT_GENERATION_ASPECT_RATIO = "16:9"
+SHARED_KEY_ENV_NAMES = ("ARCH_RENDER_GUARD_API_KEY", "IIIII_TOKEN_API_KEY")
 PROVIDER_KEY_ENV_NAMES = {
-    "gpt": ("ARCH_RENDER_GUARD_GPT_API_KEY",),
-    "gemini": ("ARCH_RENDER_GUARD_GEMINI_API_KEY",),
+    "gpt": ("ARCH_RENDER_GUARD_GPT_API_KEY", *SHARED_KEY_ENV_NAMES),
+    "gemini": ("ARCH_RENDER_GUARD_GEMINI_API_KEY", *SHARED_KEY_ENV_NAMES),
+}
+RUNTIME_DEPENDENCIES = {
+    "requests": "requests",
+    "PIL": "pillow",
+    "urllib3": "urllib3",
 }
 DEFAULT_PREVIEW_MAX_EDGE = 960
 DEFAULT_PREVIEW_QUALITY = 72
@@ -76,6 +87,72 @@ OFFICIAL_OUTPUT_DIMENSIONS = {
         "21:9": (3168, 1344),
     },
 }
+GEMINI_31_FLASH_OUTPUT_DIMENSIONS = {
+    "512px": {
+        "1:1": (512, 512),
+        "1:4": (256, 1024),
+        "1:8": (192, 1536),
+        "2:3": (424, 632),
+        "3:2": (632, 424),
+        "3:4": (448, 600),
+        "4:1": (1024, 256),
+        "4:3": (600, 448),
+        "4:5": (464, 576),
+        "5:4": (576, 464),
+        "8:1": (1536, 192),
+        "9:16": (384, 688),
+        "16:9": (688, 384),
+        "21:9": (792, 336),
+    },
+    "1K": {
+        "1:1": (1024, 1024),
+        "1:4": (512, 2048),
+        "1:8": (384, 3072),
+        "2:3": (848, 1264),
+        "3:2": (1264, 848),
+        "3:4": (896, 1200),
+        "4:1": (2048, 512),
+        "4:3": (1200, 896),
+        "4:5": (928, 1152),
+        "5:4": (1152, 928),
+        "8:1": (3072, 384),
+        "9:16": (768, 1376),
+        "16:9": (1376, 768),
+        "21:9": (1584, 672),
+    },
+    "2K": {
+        "1:1": (2048, 2048),
+        "1:4": (1024, 4096),
+        "1:8": (768, 6144),
+        "2:3": (1696, 2528),
+        "3:2": (2528, 1696),
+        "3:4": (1792, 2400),
+        "4:1": (4096, 1024),
+        "4:3": (2400, 1792),
+        "4:5": (1856, 2304),
+        "5:4": (2304, 1856),
+        "8:1": (6144, 768),
+        "9:16": (1536, 2752),
+        "16:9": (2752, 1536),
+        "21:9": (3168, 1344),
+    },
+    "4K": {
+        "1:1": (4096, 4096),
+        "1:4": (2048, 8192),
+        "1:8": (1536, 12288),
+        "2:3": (3392, 5056),
+        "3:2": (5056, 3392),
+        "3:4": (3584, 4800),
+        "4:1": (8192, 2048),
+        "4:3": (4800, 3584),
+        "4:5": (3712, 4608),
+        "5:4": (4608, 3712),
+        "8:1": (12288, 1536),
+        "9:16": (3072, 5504),
+        "16:9": (5504, 3072),
+        "21:9": (6336, 2688),
+    },
+}
 GPT_MAX_EDGE = 3840
 GPT_MAX_ASPECT_RATIO = 3.0
 GPT_MIN_PIXELS = 655_360
@@ -84,16 +161,102 @@ GPT_MAX_PIXELS = 8_294_400
 
 @dataclass(frozen=True)
 class OutputGeometry:
-    source_width: int
-    source_height: int
+    source_width: int | None
+    source_height: int | None
     aspect_ratio: str
     resolution: str
     gpt_size: str
     selection_reason: str
 
 
+def plugin_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def skill_file_path() -> Path:
+    return plugin_root() / "skills" / "architectural-render-guard" / "SKILL.md"
+
+
+def config_dir() -> Path:
+    return codex_home() / "architectural-render-guard"
+
+
+def import_runtime_modules() -> None:
+    """Load non-stdlib runtime modules after --init has had a chance to install them."""
+    global Image, ImageOps, requests, urllib3_connection
+    if requests is not None and Image is not None and ImageOps is not None and urllib3_connection is not None:
+        return
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        requests = importlib.import_module("requests")
+    pil_image = importlib.import_module("PIL.Image")
+    pil_image_ops = importlib.import_module("PIL.ImageOps")
+    urllib3_connection = importlib.import_module("urllib3.util.connection")
+    Image = pil_image
+    ImageOps = pil_image_ops
+
+
+def missing_runtime_modules() -> list[str]:
+    return [
+        module_name
+        for module_name in RUNTIME_DEPENDENCIES
+        if importlib.util.find_spec(module_name) is None
+    ]
+
+
+def install_runtime_modules(module_names: list[str]) -> list[str]:
+    installed: list[str] = []
+    for module_name in module_names:
+        package_name = RUNTIME_DEPENDENCIES[module_name]
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", package_name])
+        installed.append(package_name)
+    importlib.invalidate_caches()
+    return installed
+
+
+def environment_status(auto_install: bool) -> dict[str, Any]:
+    missing_before = missing_runtime_modules()
+    installed: list[str] = []
+    install_error = ""
+    if missing_before and auto_install:
+        try:
+            installed = install_runtime_modules(missing_before)
+        except Exception as exc:  # noqa: BLE001
+            install_error = str(exc)
+    missing_after = missing_runtime_modules()
+    if not missing_after:
+        import_runtime_modules()
+
+    config = config_dir()
+    config.mkdir(parents=True, exist_ok=True)
+    skill_path = skill_file_path()
+    status = {
+        "ok": not missing_after and skill_path.exists() and not install_error,
+        "python": sys.version.split()[0],
+        "plugin_root": str(plugin_root()),
+        "codex_home": str(codex_home()),
+        "config_dir": str(config),
+        "runtime_dependencies": {
+            "required": RUNTIME_DEPENDENCIES,
+            "missing_before": missing_before,
+            "installed": installed,
+            "missing_after": missing_after,
+            "install_error": install_error,
+        },
+        "skills": {
+            "required": ["architectural-render-guard"],
+            "architectural-render-guard": {
+                "path": str(skill_path),
+                "exists": skill_path.exists(),
+            },
+        },
+    }
+    return status
+
+
 def force_ipv4() -> None:
     """Restrict urllib3 DNS resolution to IPv4 addresses for every request."""
+    import_runtime_modules()
     urllib3_connection.allowed_gai_family = lambda: socket.AF_INET
 
 
@@ -112,15 +275,23 @@ def codex_home() -> Path:
     return Path.home() / ".codex"
 
 
-def key_file_path(provider: str) -> Path:
-    return codex_home() / "architectural-render-guard" / f"{provider}_api_key.txt"
+def key_file_path(provider: str | None = None) -> Path:
+    if provider in {None, "shared"}:
+        return config_dir() / "api_key.txt"
+    return config_dir() / f"{provider}_api_key.txt"
+
+
+def candidate_key_files(provider: str) -> list[Path]:
+    return [key_file_path(provider), key_file_path("shared")]
 
 
 def read_file_key(provider: str) -> str:
-    path = key_file_path(provider)
-    if not path.exists():
-        return ""
-    return path.read_text(encoding="utf-8").strip()
+    for path in candidate_key_files(provider):
+        if path.exists():
+            value = path.read_text(encoding="utf-8").strip()
+            if value:
+                return value
+    return ""
 
 
 def read_env_key(provider: str) -> str:
@@ -135,8 +306,9 @@ def read_key(provider: str) -> str:
     key = read_file_key(provider) or read_env_key(provider)
     if not key:
         die(
-            f"Missing {provider} API key. Save one to {key_file_path(provider)} with "
-            f"--save-{provider}-key-stdin, or set one of: "
+            f"Missing {provider} API key. Save a shared key to {key_file_path()} with "
+            f"--save-key-stdin, save a provider-specific key with --save-{provider}-key-stdin, "
+            f"or set one of: "
             f"{', '.join(PROVIDER_KEY_ENV_NAMES[provider])}."
         )
     return key
@@ -147,14 +319,16 @@ def has_key(provider: str) -> bool:
 
 
 def key_source(provider: str) -> str:
-    if read_file_key(provider):
-        return f"local file: {key_file_path(provider)}"
-    if read_env_key(provider):
-        return "environment variable"
+    for path in candidate_key_files(provider):
+        if path.exists() and path.read_text(encoding="utf-8").strip():
+            return f"local file: {path}"
+    for name in PROVIDER_KEY_ENV_NAMES[provider]:
+        if os.environ.get(name):
+            return f"environment variable: {name}"
     return ""
 
 
-def save_key_from_stdin(provider: str) -> Path:
+def save_key_from_stdin(provider: str | None = None) -> Path:
     key = sys.stdin.read().strip()
     if not key:
         die("No API key was provided on stdin.")
@@ -168,6 +342,33 @@ def save_key_from_stdin(provider: str) -> Path:
     return path
 
 
+def requested_providers(models: str) -> tuple[str, ...]:
+    if models == "both":
+        return ("gpt", "gemini")
+    if models in {"gpt", "gemini"}:
+        return (models,)
+    raise ValueError(f"Unknown model selection: {models}")
+
+
+def key_status(models: str) -> dict[str, Any]:
+    providers = requested_providers(models)
+    return {
+        "required_providers": list(providers),
+        "missing": [provider for provider in providers if not has_key(provider)],
+        "sources": {
+            provider: key_source(provider)
+            for provider in providers
+            if has_key(provider)
+        },
+        "shared_key_file": str(key_file_path("shared")),
+        "provider_key_files": {
+            provider: str(key_file_path(provider))
+            for provider in ("gpt", "gemini")
+        },
+        "save_shared_key_command": "python scripts/render_guard.py --save-key-stdin",
+    }
+
+
 def mime_type(path: Path) -> str:
     guessed = mimetypes.guess_type(str(path))[0]
     return guessed or "image/png"
@@ -178,6 +379,7 @@ def image_b64(path: Path) -> str:
 
 
 def image_dimensions(path: Path) -> tuple[int, int]:
+    import_runtime_modules()
     with Image.open(path) as source:
         image = ImageOps.exif_transpose(source)
         return image.size
@@ -229,7 +431,11 @@ def validate_gpt_size(width: int, height: int) -> None:
 
 
 def resolve_output_geometry(args: argparse.Namespace) -> OutputGeometry:
-    source_width, source_height = image_dimensions(args.image[0])
+    has_image = bool(args.image)
+    if has_image:
+        source_width, source_height = image_dimensions(args.image[0])
+    else:
+        source_width, source_height = None, None
     legacy_size = parse_pixel_size(args.size)
 
     if args.aspect_ratio != "auto":
@@ -240,10 +446,15 @@ def resolve_output_geometry(args: argparse.Namespace) -> OutputGeometry:
     elif legacy_size:
         aspect_ratio = nearest_aspect_ratio(*legacy_size)
         selection_reason = f"nearest official ratio to explicit --size {legacy_size[0]}x{legacy_size[1]}"
-    else:
+    elif has_image and source_width and source_height:
         aspect_ratio = nearest_aspect_ratio(source_width, source_height)
         selection_reason = (
             f"nearest official ratio to primary image {source_width}x{source_height}"
+        )
+    else:
+        aspect_ratio = DEFAULT_GENERATION_ASPECT_RATIO
+        selection_reason = (
+            f"default text-to-image landscape {DEFAULT_RESOLUTION} {DEFAULT_GENERATION_ASPECT_RATIO}"
         )
 
     if legacy_size:
@@ -310,6 +521,7 @@ def validate_generated_aspect_ratio(
 
 
 def create_preview(path: Path, out_dir: Path, max_edge: int, quality: int) -> Path:
+    import_runtime_modules()
     preview_dir = out_dir / "_previews"
     preview_dir.mkdir(parents=True, exist_ok=True)
     preview_path = preview_dir / f"{path.stem}_preview.jpg"
@@ -330,7 +542,88 @@ def create_preview(path: Path, out_dir: Path, max_edge: int, quality: int) -> Pa
     return preview_path
 
 
+def supported_generation_formats() -> dict[str, Any]:
+    return {
+        "default": {
+            "resolution": DEFAULT_RESOLUTION,
+            "aspect_ratio": DEFAULT_GENERATION_ASPECT_RATIO,
+            "gpt_size": f"{OFFICIAL_OUTPUT_DIMENSIONS[DEFAULT_RESOLUTION][DEFAULT_GENERATION_ASPECT_RATIO][0]}x{OFFICIAL_OUTPUT_DIMENSIONS[DEFAULT_RESOLUTION][DEFAULT_GENERATION_ASPECT_RATIO][1]}",
+        },
+        "shared_provider_safe_formats": {
+            "resolutions": list(OFFICIAL_OUTPUT_DIMENSIONS),
+            "aspect_ratios": list(SUPPORTED_ASPECT_RATIOS),
+            "dimensions": {
+                resolution: {
+                    ratio: f"{width}x{height}"
+                    for ratio, (width, height) in sizes.items()
+                }
+                for resolution, sizes in OFFICIAL_OUTPUT_DIMENSIONS.items()
+            },
+        },
+        "provider_notes": {
+            "gpt": {
+                "model": DEFAULT_GPT_MODEL,
+                "base_url": DEFAULT_GPT_BASE_URL,
+                "size_rule": "width x height pixels; both edges must be multiples of 16, max edge 3840px, max long/short edge ratio 3:1",
+                "output_formats": ["png", "jpeg", "webp"],
+            },
+            "gemini": {
+                "model": DEFAULT_GEMINI_MODEL,
+                "base_url": DEFAULT_BASE_URL,
+                "official_formats": {
+                    resolution: {
+                        ratio: f"{width}x{height}"
+                        for ratio, (width, height) in sizes.items()
+                    }
+                    for resolution, sizes in GEMINI_31_FLASH_OUTPUT_DIMENSIONS.items()
+                },
+                "image_config": {
+                    "aspectRatio": list(next(iter(GEMINI_31_FLASH_OUTPUT_DIMENSIONS.values()))),
+                    "imageSize": list(GEMINI_31_FLASH_OUTPUT_DIMENSIONS),
+                },
+            },
+        },
+    }
+
+
+def generation_prompt(args: argparse.Namespace, geometry: OutputGeometry) -> str:
+    prompt = (args.prompt or args.style or "").strip()
+    parts = [
+        "Architectural text-to-image generation.",
+        "",
+        "Requested image:",
+        prompt,
+        "",
+        "Output geometry:",
+        f"- Aspect ratio: {geometry.aspect_ratio}.",
+        f"- Resolution class: {geometry.resolution}.",
+        f"- GPT pixel size: {geometry.gpt_size}.",
+        f"- Selection reason: {geometry.selection_reason}.",
+    ]
+    if args.locked_subject:
+        parts += ["", "Subject constraints:", args.locked_subject.strip()]
+    if args.edit_area:
+        parts += ["", "Requested focus area:", args.edit_area.strip()]
+    if args.keep_text:
+        parts += ["", f'Visible text/signage to include exactly: "{args.keep_text.strip()}".']
+    if args.extra:
+        parts += ["", "Additional user requirements:", args.extra.strip()]
+    parts += [
+        "",
+        "Quality constraints:",
+        "- Produce a realistic, coherent architectural visualization.",
+        "- Keep doors, windows, stairs, ramps, platforms, signs, and entrance logic plausible and buildable.",
+        "- Do not add unreadable signage, distorted perspective, impossible structural joints, or extra facade openings unless requested.",
+        "",
+        "Avoid:",
+        args.avoid
+        or "cartoon style, distorted perspective, impossible building geometry, illegible sign text, warped doors or windows",
+    ]
+    return "\n".join(parts)
+
+
 def strict_prompt(args: argparse.Namespace, geometry: OutputGeometry) -> str:
+    style = (args.style or args.prompt or "").strip()
     image_note = (
         "Use image 1 as the primary edit target. Use the other images only as references for style, material, "
         "environment, facade details, or requested composition. Produce one final image."
@@ -345,7 +638,7 @@ def strict_prompt(args: argparse.Namespace, geometry: OutputGeometry) -> str:
         args.locked_subject.strip(),
         "",
         "Requested style / allowed changes:",
-        args.style.strip(),
+        style,
     ]
     if args.edit_area:
         parts += ["", "Edit area:", args.edit_area.strip()]
@@ -507,8 +800,12 @@ def request_gpt_image(
     geometry: OutputGeometry,
     stream: bool,
 ) -> tuple[bytes, dict[str, Any]]:
-    url = f"{args.gpt_base_url.rstrip('/')}/v1/images/edits"
-    files = gpt_multipart_files(args)
+    is_edit = bool(args.image)
+    if not is_edit:
+        stream = False
+    endpoint = "edits" if is_edit else "generations"
+    url = f"{args.gpt_base_url.rstrip('/')}/v1/images/{endpoint}"
+    files = gpt_multipart_files(args) if is_edit else []
     data = {
         "model": args.gpt_model,
         "prompt": prompt,
@@ -526,6 +823,8 @@ def request_gpt_image(
         data["response_format"] = "b64_json"
     stream_info: dict[str, Any] = {
         "requested": stream,
+        "mode": "edit" if is_edit else "generation",
+        "endpoint": endpoint,
         "partial_images_requested": args.gpt_partial_images if stream else 0,
         "events": [],
         "partial_images_received": 0,
@@ -534,18 +833,22 @@ def request_gpt_image(
     }
     response: requests.Response | None = None
     try:
-        response = session.post(
-            url,
-            headers={
+        request_kwargs: dict[str, Any] = {
+            "headers": {
                 "Authorization": f"Bearer {key}",
                 "Accept": "text/event-stream, application/json" if stream else "application/json",
             },
-            files=files,
-            data=data,
-            stream=stream,
+            "data": data,
+            "stream": stream,
             # requests applies the connect-side timeout to multipart writes on
             # some platforms; keep upload and SSE idle timeouts consistent.
-            timeout=args.timeout,
+            "timeout": args.timeout,
+        }
+        if files:
+            request_kwargs["files"] = files
+        response = session.post(
+            url,
+            **request_kwargs,
         )
         response.raise_for_status()
         if not stream:
@@ -554,7 +857,7 @@ def request_gpt_image(
         content: bytes | None = None
         for event_type, payload in iter_gpt_stream_events(response):
             stream_info["events"].append(event_type or "json")
-            if event_type == "image_edit.partial_image":
+            if event_type in {"image_edit.partial_image", "image_generation.partial_image"}:
                 b64 = payload.get("b64_json") or payload.get("image")
                 if isinstance(b64, str):
                     partial_index = payload.get(
@@ -570,14 +873,14 @@ def request_gpt_image(
                     partial_path.write_bytes(base64.b64decode(b64))
                     stream_info["partial_previews"].append(str(partial_path))
                     stream_info["partial_images_received"] += 1
-            elif event_type == "image_edit.completed":
+            elif event_type in {"image_edit.completed", "image_generation.completed"}:
                 content = image_bytes_from_gpt_payload(payload, session, args.timeout)
             elif payload.get("data"):
                 stream_info["response_mode"] = "json"
                 content = image_bytes_from_gpt_payload(payload, session, args.timeout)
         if content is None:
             raise ValueError(
-                "GPT stream ended without image_edit.completed or a standard image response"
+                "GPT stream ended without a completed image event or a standard image response"
             )
         return content, stream_info
     except Exception as exc:
@@ -598,6 +901,7 @@ def call_gpt(
     prompt: str,
     geometry: OutputGeometry,
 ) -> tuple[Path, dict[str, Any]]:
+    use_stream = bool(args.image)
     try:
         content, stream_info = request_gpt_image(
             args,
@@ -605,7 +909,7 @@ def call_gpt(
             key,
             prompt,
             geometry,
-            stream=True,
+            stream=use_stream,
         )
     except GptStreamRequestError as exc:
         if not args.gpt_stream_fallback or exc.info["events"]:
@@ -640,10 +944,12 @@ def call_gemini(
     geometry_mode: str,
 ) -> Path:
     url = f"{args.base_url.rstrip('/')}/v1beta/models/{args.gemini_model}:generateContent"
+    text = prompt
+    if args.image:
+        text += "\n\nImage 1 is the primary edit target. Images 2+ are reference images only. If a mask image is provided, treat white/bright mask areas as editable and preserve everything else."
     parts: list[dict[str, Any]] = [
         {
-            "text": prompt
-            + "\n\nImage 1 is the primary edit target. Images 2+ are reference images only. If a mask image is provided, treat white/bright mask areas as editable and preserve everything else."
+            "text": text
         },
     ]
     for index, image_path in enumerate(args.image, start=1):
@@ -689,17 +995,21 @@ def call_gemini(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate guarded architectural renders with GPT and Gemini.")
+    parser.add_argument("--init", action="store_true", help="Check plugin skills, runtime packages, local config, and API key readiness.")
+    parser.add_argument("--no-install", action="store_true", help="Do not auto-install missing runtime packages during --init.")
     parser.add_argument("--check-key", action="store_true", help="Only check whether API keys are configured.")
-    parser.add_argument("--save-key-stdin", action="store_true", help="Legacy alias that saves a GPT API key from stdin.")
-    parser.add_argument("--save-gpt-key-stdin", action="store_true", help="Read a GPT API key from stdin and save it under the local Codex directory.")
-    parser.add_argument("--save-gemini-key-stdin", action="store_true", help="Read a Gemini API key from stdin and save it under the local Codex directory.")
-    parser.add_argument("--key-file", choices=["gpt", "gemini"], nargs="?", const="gpt", help="Print the local key file path for one provider.")
+    parser.add_argument("--list-formats", action="store_true", help="Print supported generation formats and exit.")
+    parser.add_argument("--save-key-stdin", action="store_true", help="Read one shared iiiiitoken API key from stdin and save it locally for GPT and Gemini.")
+    parser.add_argument("--save-gpt-key-stdin", action="store_true", help="Read a GPT-specific API key from stdin and save it under the local Codex directory.")
+    parser.add_argument("--save-gemini-key-stdin", action="store_true", help="Read a Gemini-specific API key from stdin and save it under the local Codex directory.")
+    parser.add_argument("--key-file", choices=["shared", "gpt", "gemini"], nargs="?", const="shared", help="Print the local key file path.")
     parser.add_argument("--image", type=Path, nargs="+", help="Input image(s). First image is the primary edit target; additional images are references.")
     parser.add_argument("--preview-only", action="store_true", help="Create lightweight inspection previews for --image paths without calling a model.")
     parser.add_argument("--no-preview", action="store_true", help="Do not create lightweight inspection previews for generated outputs.")
     parser.add_argument("--preview-max-edge", type=int, default=DEFAULT_PREVIEW_MAX_EDGE, help="Maximum width or height of generated inspection previews.")
     parser.add_argument("--preview-quality", type=int, default=DEFAULT_PREVIEW_QUALITY, help="JPEG quality for generated inspection previews.")
     parser.add_argument("--mask", type=Path, help="Optional edit mask image.")
+    parser.add_argument("--prompt", default="", help="Text-to-image prompt, or edit instruction when --image is provided.")
     parser.add_argument("--locked-subject", help="Building body and details that must not change.")
     parser.add_argument("--style", help="Requested render style/material/light/environment.")
     parser.add_argument("--edit-area", default="", help="Specific area to edit.")
@@ -757,30 +1067,53 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=240)
     parser.add_argument("--attempt", type=int, default=1)
     args = parser.parse_args()
+    if args.image is None:
+        args.image = []
 
     if args.key_file:
-        print(key_file_path(args.key_file))
+        print(key_file_path(None if args.key_file == "shared" else args.key_file))
         return 0
 
     if args.save_key_stdin or args.save_gpt_key_stdin or args.save_gemini_key_stdin:
-        provider = "gemini" if args.save_gemini_key_stdin else "gpt"
+        provider = None
+        if args.save_gpt_key_stdin:
+            provider = "gpt"
+        elif args.save_gemini_key_stdin:
+            provider = "gemini"
         path = save_key_from_stdin(provider)
-        print(f"{provider.title()} API key saved to local Codex key file: {path}")
+        label = provider.title() if provider else "Shared"
+        print(f"{label} API key saved to local Codex key file: {path}")
         return 0
+
+    if args.list_formats:
+        print(json.dumps(supported_generation_formats(), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.init:
+        status = environment_status(auto_install=not args.no_install)
+        status["keys"] = key_status(args.models)
+        print(json.dumps(status, ensure_ascii=False, indent=2))
+        if status["keys"]["missing"]:
+            return 3
+        return 0 if status["ok"] else 2
 
     if args.check_key:
-        missing = [provider for provider in ("gpt", "gemini") if not has_key(provider)]
-        if missing:
-            die(f"Missing API key(s): {', '.join(missing)}.", code=3)
-        print(f"GPT API key found in {key_source('gpt')}.")
-        print(f"Gemini API key found in {key_source('gemini')}.")
+        status = key_status(args.models)
+        if status["missing"]:
+            die(
+                f"Missing API key(s): {', '.join(status['missing'])}. "
+                f"Provide a key and save it with --save-key-stdin to {key_file_path()}.",
+                code=3,
+            )
+        for provider in requested_providers(args.models):
+            print(f"{provider.title()} API key found in {key_source(provider)}.")
         return 0
 
-    if not args.image:
-        die("Missing --image for generation.")
     for image_path in args.image:
         if not image_path.exists():
             die(f"Input image does not exist: {image_path}")
+    if args.mask and not args.image:
+        die("--mask can only be used when --image is provided.")
     if args.preview_max_edge < 128:
         die("--preview-max-edge must be at least 128.")
     if not 20 <= args.preview_quality <= 95:
@@ -794,8 +1127,11 @@ def main() -> int:
         args.base_url,
         args.gemini_geometry_mode,
     )
+    mode = "edit" if args.image else "generation"
 
     if args.preview_only:
+        if not args.image:
+            die("--preview-only requires --image.")
         previews = {
             str(path): str(create_preview(path, args.out_dir, args.preview_max_edge, args.preview_quality))
             for path in args.image
@@ -813,20 +1149,23 @@ def main() -> int:
         )
         return 0
 
-    if not args.locked_subject:
-        die("Missing --locked-subject for generation.")
-    if not args.style:
-        die("Missing --style for generation.")
+    if mode == "edit" and not args.locked_subject:
+        die("Missing --locked-subject for image editing.")
+    if mode == "edit" and not (args.style or args.prompt):
+        die("Missing --style or --prompt for image editing.")
+    if mode == "generation" and not (args.prompt or args.style):
+        die("Missing --prompt or --style for text-to-image generation.")
     if args.mask and not args.mask.exists():
         die(f"Mask image does not exist: {args.mask}")
 
     gpt_key = read_key("gpt") if args.models in {"both", "gpt"} else ""
     gemini_key = read_key("gemini") if args.models in {"both", "gemini"} else ""
-    prompt = strict_prompt(args, geometry)
+    prompt = strict_prompt(args, geometry) if mode == "edit" else generation_prompt(args, geometry)
     prompt_path = args.out_dir / f"{args.prefix}_attempt{args.attempt}_prompt.txt"
     prompt_path.write_text(prompt, encoding="utf-8")
 
     force_ipv4()
+    import_runtime_modules()
     session = requests.Session()
     session.trust_env = False
 
@@ -880,8 +1219,9 @@ def main() -> int:
                 errors[f"{provider}_preview"] = str(exc)
 
     manifest = {
+        "mode": mode,
         "input_images": [str(path) for path in args.image],
-        "primary_image": str(args.image[0]),
+        "primary_image": str(args.image[0]) if args.image else None,
         "mask": str(args.mask) if args.mask else None,
         "attempt": args.attempt,
         "models": args.models,
@@ -889,6 +1229,7 @@ def main() -> int:
         "output_dimensions": output_dimensions,
         "gemini_geometry_mode": gemini_geometry_mode,
         "gpt_stream": gpt_stream,
+        "supported_generation_formats": supported_generation_formats(),
         "prompt_file": str(prompt_path),
         "outputs": outputs,
         "previews": previews,

@@ -1,15 +1,15 @@
 {
   "name": "architectural-render-guard",
-  "version": "0.1.0+codex.20260721184836",
-  "description": "Generate 2K architectural image-to-image renders with automatic official aspect-ratio selection and strict building preservation using GPT and Gemini image models.",
+  "version": "0.1.0+codex.20260810145524",
+  "description": "Generate or edit 2K architectural renders with automatic official aspect-ratio selection, first-use environment checks, local key storage, and strict building preservation using GPT and Gemini image models.",
   "author": {
     "name": "m174460635"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Architectural Render Guard",
-    "shortDescription": "Render buildings while preserving the body.",
-    "longDescription": "Architectural Render Guard helps Codex collect locked building constraints, choose an official output aspect ratio, render at 2K with GPT and Gemini, inspect lightweight previews, and show only the accepted full-resolution result while preserving the architectural subject.",
+    "shortDescription": "Generate or edit guarded building renders.",
+    "longDescription": "Architectural Render Guard helps Codex initialize runtime dependencies, store a local iiiiitoken key, generate 2K landscape architectural images when no input image is supplied, edit uploaded building images with nearest official aspect-ratio selection, compare GPT and Gemini outputs, inspect lightweight previews, and show only the accepted full-resolution result while preserving the architectural subject.",
     "developerName": "m174460635",
     "category": "Productivity",
     "capabilities": [
@@ -17,6 +17,7 @@
       "Interactive"
     ],
     "defaultPrompt": [
+      "Use Architectural Render Guard to generate a 2K landscape architectural image.",
       "Use Architectural Render Guard to render this building without changing its body.",
       "Use Architectural Render Guard with these reference images to make one render.",
       "Use Architectural Render Guard to edit this facade and preserve doors/windows."

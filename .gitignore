@@ -8,7 +8,7 @@ htmlcov/
 .env
 .env.*
 *_api_key.txt
-architectural-render-guard/
+/architectural-render-guard/
 
 outputs/
 _previews/
