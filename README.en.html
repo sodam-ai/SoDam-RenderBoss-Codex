@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architectural Render Guard — English Guide</title>
+<style>
+:root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.65; }
+body { margin: 0; color: #17212b; background: #f5f7fa; }
+main { box-sizing: border-box; max-width: 960px; margin: 1rem auto; padding: 2rem; background: white; border-radius: 12px; }
+h1,h2,h3 { line-height: 1.3; scroll-margin-top: 1rem; }
+h1 { font-size: 2rem; } h2 { margin-top: 2.3rem; border-bottom: 1px solid #dde3ea; padding-bottom: .35rem; }
+a { color: #0759a8; overflow-wrap: anywhere; } a:focus-visible, summary:focus-visible { outline: 3px solid #0759a8; outline-offset: 3px; }
+pre { padding: 1rem; overflow-x: auto; background: #10202f; color: #f5f8fb; border-radius: 8px; }
+code { overflow-wrap: anywhere; } pre code { overflow-wrap: normal; }
+table { border-collapse: collapse; display: block; overflow-x: auto; width: 100%; } th,td { border: 1px solid #cbd5df; padding: .55rem; vertical-align: top; } th { background: #ecf2f7; }
+blockquote { border-left: 4px solid #3d7ab3; padding: .4rem 1rem; margin: 1rem 0; background: #f0f6fb; }
+details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } summary { cursor: pointer; font-weight: 650; }
+.language-link { text-align: right; } @media (max-width: 640px) { main { margin: 0; padding: 1rem; border-radius: 0; } h1 { font-size: 1.55rem; } }
+@media print { body { background: white; } main { margin: 0; padding: 0; max-width: none; } pre { white-space: pre-wrap; color: black; background: white; border: 1px solid #999; } }
+</style>
+</head>
+<body>
+<main>
+<p class="language-link"><a href="README.html" lang="ko">한국어</a></p>
+<!-- BEGIN_MARKDOWN_RENDER -->
+<h1>Architectural Render Guard — Codex Built-in Image Edition</h1>
+<blockquote>
+<p>Documentation date: 2026-09-27 · Plugin version: <code>0.2.0+codex.20260926162227</code> · Project-folder nickname: <code>SoDam-RenderBoss</code></p>
+</blockquote>
+<p>This plugin helps you create or edit architectural images with <strong>Codex's built-in image generation tool</strong>. It prepares instructions to preserve the building and records checks on the result. <strong>You do not need a user API key or Gemini.</strong> You do need to sign in to Codex and have access to its built-in image tool in the current task. Running the Python command alone does not generate an image.</p>
+<p><strong>Repository:</strong> The distribution target for this keyless edition is private <a href="https://github.com/sodam-ai/_SoDam-RenderBoss"><code>sodam-ai/_SoDam-RenderBoss</code></a>. Only authorized users can download it. The <a href="https://github.com/m174460635/architectural-render-guard">public upstream</a> is a different edition requiring API keys.</p>
+<h2>Contents</h2>
+<ol>
+<li><a href="#features">Features</a></li>
+<li><a href="#prerequisites">Prerequisites and downloads</a></li>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#quick-start">Quick start</a></li>
+<li><a href="#usage">Usage and commands</a></li>
+<li><a href="#workflow">How it works, workflow, and architecture</a></li>
+<li><a href="#files">Files and documents</a></li>
+<li><a href="#security">Security and data flow</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#faq">FAQ</a></li>
+<li><a href="#updates">Update summary</a></li>
+<li><a href="#legal">Copyright, license, and commercial use</a></li>
+</ol>
+<p><a id="features"></a></p>
+<h2>1. Features</h2>
+<ul>
+<li><strong>New images:</strong> Describe the building and desired appearance; Codex calls its built-in tool to generate an image.</li>
+<li><strong>Edit an image:</strong> The first image is the building to edit. Additional images are references for materials, color, or surroundings.</li>
+<li><strong>Preservation instructions:</strong> The prompt calls out massing, floors, roofline, camera, door and window count and positions, entrance, stairs, ramp, rails, and signage.</li>
+<li><strong>Local partial edits:</strong> A same-size RGBA PNG mask makes <strong>transparent pixels editable</strong> and restores opaque pixels from the original at the end. Inspect the seam by eye.</li>
+<li><strong>Review material:</strong> Input and output previews, actual output dimensions, aspect-ratio checks, and errors are saved. A person must compare building details with the original.</li>
+</ul>
+<p><strong>Limits:</strong> The default <code>2K</code> is a request, not an output guarantee. The actual built-in-tool result is measured afterward. A prior live check produced <code>1672×941</code>. Exact pixels, perfect preservation of every building element, and streaming partial images are not guaranteed. You may upscale an approved result in another tool.</p>
+<p><a id="prerequisites"></a></p>
+<h2>2. Prerequisites and downloads</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Purpose</th>
+<th>Where to get or check it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows PC and file space</td>
+<td>The commands below use Windows PowerShell.</td>
+<td>Prepare a folder for images and results.</td>
+</tr>
+<tr>
+<td>Codex account and sign-in</td>
+<td>The built-in image tool runs through Codex, with no user API key.</td>
+<td>Start at <a href="https://openai.com/codex/">OpenAI Codex</a>. Tool access depends on account and task environment.</td>
+</tr>
+<tr>
+<td>Codex CLI</td>
+<td>Runs the <code>codex plugin</code> installation commands; you can work in the desktop app afterward.</td>
+<td>Follow the Windows path in the <a href="https://learn.chatgpt.com/docs/codex/cli">official Codex CLI guide</a>.</td>
+</tr>
+<tr>
+<td>Python and pip</td>
+<td>Run the local preparation and review scripts.</td>
+<td>Install from <a href="https://www.python.org/downloads/">Python's official downloads</a> and check the PATH option.</td>
+</tr>
+<tr>
+<td>Pillow</td>
+<td>Reads images and creates previews, masks, and PNG files.</td>
+<td>Install with the <code>requirements.txt</code> command below.</td>
+</tr>
+<tr>
+<td>Input image</td>
+<td>Needed only when editing an existing building.</td>
+<td>Prepare a PNG/JPEG or other supported image you own or have permission to use.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Getting the keyless project:</strong> Use this local folder or, after receiving private-repository access, run <code>git clone https://github.com/sodam-ai/_SoDam-RenderBoss.git</code>. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that <code>.codex-plugin/plugin.json</code> describes <code>Keyless</code> and <code>Codex built-in</code>; do not run installers from unknown sources.</p>
+<p>PowerShell is Windows' command window. Open <strong>PowerShell</strong> from Start and paste each command below. Keep quotes around paths with spaces. The example <code>D:\...</code> is the current PC's folder; replace it with the real path on another PC.</p>
+<p><a id="installation"></a></p>
+<h2>3. Installation</h2>
+<h3>3-1. Check programs and install the Python dependency</h3>
+<pre><code class="language-powershell">codex --version
+python --version
+python -m pip --version
+Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss'
+python -m pip install -r requirements.txt
+</code></pre>
+<p>If <code>codex</code> or <code>python</code> is not found, finish installing it and open a fresh PowerShell window. This project's Python dependency is <code>Pillow&gt;=10,&lt;13</code>. Install it explicitly as shown instead of relying on <code>--init</code> to install it automatically. Installing Python and Pillow may need a download.</p>
+<h3>3-2. Build and install the marketplace from the current local source</h3>
+<pre><code class="language-powershell">python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
+codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss\outputs\keyless-marketplace-local'
+codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
+codex plugin list
+</code></pre>
+<p>The builder prints the actual <code>marketplace_root</code> to register. If the output folder already exists, the builder refuses to overwrite it; choose a <strong>new folder name</strong>, such as <code>outputs/keyless-marketplace-local-2</code>. Confirm that <code>architectural-render-guard@architectural-render-guard-keyless-local</code> appears as <code>installed, enabled</code>. Distinguish it from the public upstream entry. Open a <strong>new Codex task</strong> so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to <code>codex plugin marketplace add</code>.</p>
+<h3>3-3. Developer testing and private repository delivery</h3>
+<pre><code class="language-powershell">python -m unittest discover -s tests -v
+python -m ruff check scripts tests
+python -m compileall -q scripts tests
+python scripts/build_local_marketplace.py --out-dir outputs/release-check
+git status --short
+git push origin builtin-imagegen
+</code></pre>
+<p>If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a <code>builtin-imagegen</code> → <code>main</code> PR on GitHub, review changed files and tests, then merge it. <strong>Do not push directly to <code>main</code> or run <code>scripts/publish.ps1</code> during normal use.</strong> This project needs no user API-key environment variable. Codex handles sign-in.</p>
+<p>The <code>codex plugin marketplace add</code> and <code>codex plugin add</code> syntax was checked against this PC's CLI <code>0.156.1</code> help and installation status. Check <code>codex plugin --help</code> if your version differs. This documented installation uses the CLI; a separate desktop-only installation path was not verified.</p>
+<h3>3-3. Check local readiness</h3>
+<pre><code class="language-powershell">python scripts/render_guard.py --init --no-install
+python scripts/render_guard.py --list-formats
+</code></pre>
+<p><code>--init</code> checks the local skill file and Pillow. It <strong>does not test access to the built-in image tool</strong>. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.</p>
+<p><a id="quick-start"></a></p>
+<h2>4. Quick start for first-time users</h2>
+<ol>
+<li>Finish installation, sign in to Codex, and open a new task.</li>
+<li>Attach the original building image to edit it. For a new building image, no attachment is needed.</li>
+<li>Paste the following request and replace the parts in <code>[ ]</code>. For editing, list exactly what must remain: floors, windows, doors, stairs, ramp, and sign text.</li>
+</ol>
+<blockquote>
+<p>Use Architectural Render Guard to make this building image photorealistic. Keep [two floors, the existing number and positions of windows and doors, central entrance, front stairs, right ramp, and sign text] unchanged. Change only [natural materials and lighting on a clear day]. Use only Codex built-in image generation, with no API key or Gemini. Compare the result with the original and report its actual pixel dimensions and changes.</p>
+</blockquote>
+<ol start="4">
+<li>Compare the result side by side with the original. If a window, door, stair, ramp, or sign changed, identify the specific difference and request a new attempt. For a new image, describe the building type, floors, view, and materials.</li>
+<li>Use only a reviewed result. Check actual file dimensions even if you requested <code>2K</code>.</li>
+</ol>
+<p>Codex can follow the skill to prepare, generate, and review without you typing commands. The following commands are for manual review and advanced use.</p>
+<p><a id="usage"></a></p>
+<h2>5. Running, using, and commanding the plugin</h2>
+<p>Run every example from the project root in PowerShell. <code>--out-dir</code> stores results under project <code>outputs/</code>, excluded from Git commits. Replace sample image paths with your own.</p>
+<h3>Make a new building image</h3>
+<pre><code class="language-powershell">python scripts/render_guard.py --prepare --prompt 'Two-floor neighborhood library, front view, clear entrance, stairs and access ramp, photorealistic daylight' --out-dir outputs/my-first-render --prefix library
+</code></pre>
+<p>This command <strong>only prepares a job JSON and prompt</strong>. Ask Codex to read the printed <code>prompt_file</code> and create one image with its built-in image tool. Find the actual path where that tool saved the image, then finalize it:</p>
+<pre><code class="language-powershell">python scripts/render_guard.py --finalize --job outputs/my-first-render/library_attempt1_job.json --output 'C:\path\to\codex-generated.png'
+</code></pre>
+<h3>Edit an existing building</h3>
+<pre><code class="language-powershell">python scripts/render_guard.py --prepare --image 'C:\images\building.png' --locked-subject 'Two floors; keep all windows, doors, central entrance, front stairs, right ramp, and signage' --style 'Photorealistic bright daylight, stone and wood' --out-dir outputs/my-edit --prefix facade
+</code></pre>
+<p>The first <code>--image</code> is the edit target. Add reference files after it: <code>--image 'C:\images\building.png' 'C:\images\material.jpg'</code>. Tell Codex that <strong>only the first is the original building</strong> and the others are style references. Codex may directly use conversation attachments without local paths, but <code>--prepare --image</code> needs real local paths.</p>
+<h3>Partial edits and retries</h3>
+<p>Add <code>--mask 'C:\images\mask.png'</code> if needed. It must be a <strong>same-width, same-height RGBA PNG</strong>: transparent areas may change and opaque areas keep original pixels. Inspect translucent areas and seams yourself. Use <code>--attempt 2</code>, then <code>--attempt 3</code>, for a new try without overwriting the first. Finalize with that attempt's own <code>*_job.json</code>.</p>
+<h3>Main options</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning and caution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--prepare</code> / <code>--finalize</code></td>
+<td>Prepare a job / finish the image saved by Codex. Select one action.</td>
+</tr>
+<tr>
+<td><code>--image PATH [PATH ...]</code></td>
+<td>One original plus optional references. Edits require <code>--locked-subject</code> and <code>--style</code> or <code>--prompt</code>.</td>
+</tr>
+<tr>
+<td><code>--prompt</code>, <code>--style</code>, <code>--locked-subject</code></td>
+<td>Describe what to create, allowed style changes, and building parts to keep.</td>
+</tr>
+<tr>
+<td><code>--edit-area</code>, <code>--keep-text</code>, <code>--extra</code>, <code>--avoid</code></td>
+<td>Edit area, exact text, other requirements, and unwanted changes.</td>
+</tr>
+<tr>
+<td><code>--mask PATH</code></td>
+<td>Same-size RGBA PNG mask for local partial edits.</td>
+</tr>
+<tr>
+<td><code>--aspect-ratio</code></td>
+<td>Default <code>auto</code>; see <code>--list-formats</code>. New images default to <code>16:9</code>; edits choose the nearest supported ratio to the original.</td>
+</tr>
+<tr>
+<td><code>--resolution</code></td>
+<td>Request <code>native</code>, <code>1K</code>, or <code>2K</code>. Default <code>2K</code>; actual size is not guaranteed.</td>
+</tr>
+<tr>
+<td><code>--size WIDTHxHEIGHT</code></td>
+<td><strong>Checks the raw result after generation</strong> against an explicit size. It does not force the tool to produce that size. Mismatch is recorded as failure.</td>
+</tr>
+<tr>
+<td><code>--out-dir</code>, <code>--prefix</code>, <code>--attempt</code></td>
+<td>Result folder, filename prefix, attempt number. A prefix starts with a letter/digit and contains only letters/digits/<code>_</code>/<code>-</code>.</td>
+</tr>
+<tr>
+<td><code>--preview-only --image PATH</code></td>
+<td>Make input JPEG previews without generating an image.</td>
+</tr>
+<tr>
+<td><code>--preview-max-edge</code>, <code>--preview-quality</code>, <code>--no-preview</code></td>
+<td>Adjust or skip previews.</td>
+</tr>
+<tr>
+<td><code>--init --no-install</code>, <code>--list-formats</code></td>
+<td>Local readiness / supported ratios and reference sizes.</td>
+</tr>
+</tbody>
+</table>
+<p>The original GPT reference size in <code>--list-formats</code> (<code>2K 16:9</code> is <code>2752×1536</code>) is <strong>not guaranteed output from the built-in tool</strong>. <code>--size 2752x1536</code> reports failure if the actual result differs. Check <code>raw_output_dimensions</code>, <code>aspect_ratio_pass</code>, <code>requested_size_pass</code>, <code>errors</code>, and <code>semantic_review</code> in the manifest. <code>requested_size_pass: null</code> means no explicit <code>--size</code> was given.</p>
+<p><a id="workflow"></a></p>
+<h2>6. How it works, workflow, and architecture</h2>
+<pre><code class="language-text">User request + optional original, references, and mask
+  → Codex skill: capture requested changes and protected building parts
+  → render_guard.py --prepare: validate inputs; save prompt, job JSON, preview
+  → Codex built-in image_gen: generate or edit image
+  → render_guard.py --finalize: measure size; optional local mask composite; save PNG, preview, manifest
+  → Codex/user: compare building form, windows, doors, stairs, ramp, and signage with original
+  → Retry with a new attempt if needed
+</code></pre>
+<p><code>scripts/builtin_guard.py</code> supports ratio selection, input-size checks, and prompt writing. <code>scripts/render_guard.py</code> is the user-facing command. The plugin has no web server, database, sign-in server, or Gemini connector. The Codex environment handles sign-in and image generation. Python does not automatically invoke the built-in tool; Codex must act between preparation and finalization.</p>
+<p>There are two kinds of checks. <strong>Automatic checks</strong> cover file existence, mask format and size, output ratio, and explicit size. <strong>Visual review</strong> compares real building elements and lettering with the source. <code>aspect_ratio_pass: true</code> does not prove building preservation.</p>
+<p><a id="files"></a></p>
+<h2>7. Files and documents</h2>
+<table>
+<thead>
+<tr>
+<th>Relative to project root</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code> / <code>README.html</code></td>
+<td>Equivalent Korean Markdown / web page.</td>
+</tr>
+<tr>
+<td><code>README.en.md</code> / <code>README.en.html</code></td>
+<td>Equivalent English Markdown / web page.</td>
+</tr>
+<tr>
+<td><code>LICENSE</code></td>
+<td>Official Apache License, Version 2.0 text for new contributions.</td>
+</tr>
+<tr>
+<td><code>LICENSES/MIT-upstream.txt</code> / <code>NOTICE</code></td>
+<td>Preserved original MIT license and copyright / source attribution.</td>
+</tr>
+<tr>
+<td><code>requirements.txt</code></td>
+<td>Pillow dependency constraint.</td>
+</tr>
+<tr>
+<td><code>.codex-plugin/plugin.json</code></td>
+<td>Plugin name, version, and description.</td>
+</tr>
+<tr>
+<td><code>.agents/plugins/marketplace.json</code></td>
+<td>Configuration pointing to the private repository; GitHub access is required.</td>
+</tr>
+<tr>
+<td><code>skills/architectural-render-guard/SKILL.md</code></td>
+<td>Codex agent workflow instructions.</td>
+</tr>
+<tr>
+<td><code>scripts/render_guard.py</code> / <code>scripts/builtin_guard.py</code></td>
+<td>User CLI / supporting logic.</td>
+</tr>
+<tr>
+<td><code>scripts/build_local_marketplace.py</code></td>
+<td>Creates the local install package.</td>
+</tr>
+<tr>
+<td><code>scripts/publish.ps1</code></td>
+<td>Developer publication script; <strong>do not run during normal installation.</strong> Publish through a working branch and reviewed PR.</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>Automated tests.</td>
+</tr>
+<tr>
+<td><code>outputs/&lt;job name&gt;/</code></td>
+<td>Job JSON, prompt, PNG, manifest JSON, and JPEG files in <code>_previews/</code>. <code>outputs/</code> is Git-ignored.</td>
+</tr>
+</tbody>
+</table>
+<p>Open the HTML document in a browser to read it. <strong>Opening HTML does not run the plugin or create images.</strong> The local package builder includes the core plugin files, all four README documents, <code>LICENSE</code>, the original MIT notice, and <code>NOTICE</code>. Moving the project leaves old absolute paths in existing job JSON; create a new job with <code>--prepare</code> after a move.</p>
+<p><a id="security"></a></p>
+<h2>8. Security and data flow</h2>
+<ul>
+<li>The job JSON records <strong>local paths</strong> of inputs, references, and mask. Prompt, previews, final PNG, and manifest are saved under the chosen local <code>outputs/</code> directory. Personal details in folder names or images can therefore be exposed in those files.</li>
+<li>During generation, the built-in Codex tool receives the request and selected images. Review applicable <a href="https://openai.com/policies/row-terms-of-use/">OpenAI Terms of Use</a>, <a href="https://openai.com/policies/service-terms/">Service Terms</a>, and account settings for access, data handling, and limits. <strong>No API key does not mean offline processing.</strong></li>
+<li>This repository's Python image path does not read an API key, call an external image API, or invoke Gemini. <code>python -m pip install -r requirements.txt</code> downloads a dependency, while developer-only <code>scripts/publish.ps1</code> performs separate GitHub publication actions.</li>
+<li><code>.gitignore</code> excludes <code>.env</code>, <code>*.log</code>, and <code>outputs/</code>. <strong>Images outside <code>outputs/</code> are not automatically excluded.</strong> Ignore rules alone cannot prevent every secret leak; review files and image content, signs, people, and addresses before sharing or committing. Check upload permission and account data policies before using confidential client material.</li>
+<li>Existing named jobs and results are protected from overwrite. An empty <code>errors</code> array in the manifest is still not visual approval.</li>
+</ul>
+<p><a id="troubleshooting"></a></p>
+<h2>9. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check and remedy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>codex</code> or <code>python</code> not found</td>
+<td>Finish the official installation, open a new PowerShell window, then retry <code>codex --version</code> and <code>python --version</code>.</td>
+</tr>
+<tr>
+<td><code>Pillow is missing</code> / <code>No module named PIL</code></td>
+<td>Run <code>python -m pip install -r requirements.txt</code> in the project root. Use the same <code>python</code> to install and run.</td>
+</tr>
+<tr>
+<td>Plugin missing or asks for an API key</td>
+<td>Check <code>codex plugin list</code> for the selector ending <code>@architectural-render-guard-keyless-local</code>. Do not confuse it with the public entry; start a new Codex task.</td>
+</tr>
+<tr>
+<td>Built-in image tool unavailable</td>
+<td>Check Codex sign-in, tool access for this account/task, and connectivity. There is no API-key or Gemini fallback in this edition.</td>
+</tr>
+<tr>
+<td><code>Destination already exists</code> / <code>Job already exists</code> / <code>Preview already exists</code></td>
+<td>Use a new output directory, <code>--prefix</code>, or <code>--attempt</code>. Do not delete or overwrite the earlier result.</td>
+</tr>
+<tr>
+<td><code>Input image does not exist</code> or failure after moving folders</td>
+<td>Verify the image path and run a fresh <code>--prepare</code>. Do not reuse a job JSON with old absolute paths.</td>
+</tr>
+<tr>
+<td>Mask RGBA or dimension error</td>
+<td>Save a transparent RGBA PNG at exactly the original width and height.</td>
+</tr>
+<tr>
+<td>Result is <code>1672×941</code> after requesting <code>2752×1536</code></td>
+<td>The <code>2K</code> reference size is not guaranteed. Check actual pixels; upscale externally after review if needed. An explicit <code>--size</code> mismatch is a failed attempt.</td>
+</tr>
+<tr>
+<td>Ratio/size check fails or <code>errors</code> is nonempty</td>
+<td>Do not accept the attempt. Inspect output and manifest, then request a new <code>--attempt</code>.</td>
+</tr>
+<tr>
+<td>Windows, doors, stairs, or text changed</td>
+<td>Compare with the original, describe the specific error, and regenerate. Inspect mask seams. Automatic checks cannot guarantee semantic identity.</td>
+</tr>
+</tbody>
+</table>
+<p>When reporting an issue, inspect the error message and job JSON field names, but do not publish customer images, personal information, account details, or passwords in an issue or chat.</p>
+<p><a id="faq"></a></p>
+<h2>10. FAQ</h2>
+<p><strong>Q. Does it really work without an API key?</strong> Yes. This local edition uses Codex built-in image generation with no user API key or Gemini, and a live generation was verified. Codex sign-in and image-tool access are still required.</p>
+<p><strong>Q. Is it entirely free and offline?</strong> This is not guaranteed. No API key is a different question from account charges, usage limits, and internet access. Check current conditions for your account in Codex.</p>
+<p><strong>Q. Where can I get this edition?</strong> With access, download private <code>sodam-ai/_SoDam-RenderBoss</code>. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.</p>
+<p><strong>Q. Why does <code>--prepare</code> not create an image?</strong> Python prepares the job. Codex's built-in tool generates the image; <code>--finalize</code> then makes the review files.</p>
+<p><strong>Q. Does it guarantee 2K and every building detail?</strong> No. 2K is a request and preservation depends on prompting and human comparison. Only opaque mask regions receive local pixel restoration.</p>
+<p><strong>Q. Can I run it directly on a phone?</strong> The installation, Python, and PowerShell steps here target a Windows PC. Standalone mobile installation and screen behavior were not verified. Viewing the completed image on a phone is separate.</p>
+<p><strong>Q. Can I use the image commercially?</strong> The Apache/MIT permission for code differs from <strong>rights in generated images, sources, and reference material</strong>. Review input permission, trademarks, likeness consent, client contracts, and applicable OpenAI terms below.</p>
+<p><a id="updates"></a></p>
+<h2>11. Update summary</h2>
+<details>
+<summary>Expand: What changed in the current local keyless edition</summary>
+<div>
+<p>The former external image API/Gemini route was replaced with a prepare → generate → finalize workflow using Codex built-in image generation. No user API key is required.</p>
+<ul><li>Supports new-image creation, editing, multiple references, building-preservation instructions, RGBA mask compositing, input/output previews, and attempt-specific records.</li><li>Records actual size and ratio; an explicit pixel-size mismatch fails. Exact 2K pixels and semantic preservation from the built-in tool are not guaranteed.</li><li>Documents private delivery, Apache 2.0 for new contributions, preserved upstream MIT notice, local marketplace builder, and automated tests.</li></ul>
+</div>
+</details>
+<p><a id="legal"></a></p>
+<h2>12. Copyright, license, and commercial use</h2>
+<p><strong>Project code and documentation:</strong> New contributions use the <strong>Apache License, Version 2.0</strong> with <code>Copyright 2026 SoDam AI Studio</code>. The original <code>architectural-render-guard</code> copyright, <code>Copyright (c) 2026 m174460635</code>, and <strong>MIT License</strong> are preserved in <a href="LICENSES/MIT-upstream.txt"><code>LICENSES/MIT-upstream.txt</code></a>. <a href="LICENSE"><code>LICENSE</code></a> contains the Apache text; <a href="NOTICE"><code>NOTICE</code></a> explains provenance. On redistribution, keep the Apache text and original MIT notice, and mark modified files and their source. Both licenses contain warranty and liability limitations.</p>
+<p><strong>In plain terms:</strong> You may use the code and documentation for personal work, teaching, company work, forks, modification, redistribution, paid sale, service operation, and client delivery if you follow both licenses. Keep <code>LICENSE</code>, <code>LICENSES/MIT-upstream.txt</code>, and <code>NOTICE</code> with copies or modifications. Image and external-service rights are separate, as explained below.</p>
+<p><strong>Installed dependency:</strong> The sole Python dependency in <code>requirements.txt</code> is <code>Pillow&gt;=10,&lt;13</code>. Pillow uses its own <a href="https://github.com/python-pillow/Pillow/blob/main/LICENSE">MIT-CMU license</a>, separate from this project's Apache/MIT licenses. The locally checked version is 12.3.0. If you redistribute Pillow or a packaged executable/installer containing it, review and include the copyright and permission notices for that exact version and any bundled components. Do not use author names for promotion without permission. This document does not clear future versions within the allowed range or their binary components.</p>
+<p><strong>Rights to check separately:</strong> The project's Apache/MIT licenses do not grant rights in your input/reference images, third-party architectural designs or drawings, trademarks, signs, people, generated output, Python/Pillow, or the Codex/OpenAI service. Verify that you may supply, edit, publish, and commercially use every input. The <a href="https://openai.com/policies/row-terms-of-use/">OpenAI Terms of Use</a> discuss rights in output between you and OpenAI to the extent permitted by law, but <strong>do not guarantee third-party clearance or uniqueness</strong>. Check applicable <a href="https://openai.com/policies/service-terms/">Service Terms</a> and policies for your location, account, and contract. Before client delivery, advertising, or sale, review sign text, trademarks, likeness permissions, architectural design rights, and contract scope.</p>
+<p><strong>Check each material:</strong> The current code package contains no images, icons, fonts, video, audio, or sample accounts. Local <code>outputs/</code> is excluded from Git, but may contain generated images, previews, and logs. Before sharing or delivering these, check the source and commercial permissions for originals, references, drawings, templates, prompts, screenshots, and generated content; inspect for personal data, client information, private material, trademarks, and signs. Before final use, check AI-generated code, documents, and images for provenance, copyright, similarity to third-party works, and commercial-use terms. If you add another API, model, SDK, stock asset, font, or icon, check its separate plan, terms, and license.</p>
+<p><strong>Prohibitions and caution:</strong> Rights-infringing input/use, unauthorized use of a person's likeness, and bypassing OpenAI service restrictions may be prohibited. License warranty exclusions do not authorize unlawful use. This is general information, not a guarantee of legal effect. You are responsible for checking the applicable agreements and should consult a lawyer for a specific commercial release or dispute.</p>
+<!-- END_MARKDOWN_RENDER -->
+</main>
+</body>
+</html>
