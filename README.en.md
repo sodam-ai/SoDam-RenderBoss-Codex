@@ -1,10 +1,10 @@
 # Architectural Render Guard — Codex Built-in Image Edition
 
-> Documentation date: 2026-09-27 · Plugin version: `0.2.0+codex.20260926162227` · Project-folder nickname: `SoDam-RenderBoss`
+> Documentation date: 2026-09-27 · Plugin version: `0.2.0+codex.20260926162227` · Project-folder nickname: `SoDam-RenderBoss-Codex`
 
 This plugin helps you create or edit architectural images with **Codex's built-in image generation tool**. It prepares instructions to preserve the building and records checks on the result. **You do not need a user API key or Gemini.** You do need to sign in to Codex and have access to its built-in image tool in the current task. Running the Python command alone does not generate an image.
 
-**Repository:** The distribution target for this keyless edition is private [`sodam-ai/_SoDam-RenderBoss`](https://github.com/sodam-ai/_SoDam-RenderBoss). Only authorized users can download it. The [public upstream](https://github.com/m174460635/architectural-render-guard) is a different edition requiring API keys.
+**Repository:** The distribution target for this keyless edition is private [`sodam-ai/SoDam-RenderBoss-Codex`](https://github.com/sodam-ai/SoDam-RenderBoss-Codex). Only authorized users can download it. The [public upstream](https://github.com/m174460635/architectural-render-guard) is a different edition requiring API keys.
 
 ## Contents
 
@@ -44,7 +44,7 @@ This plugin helps you create or edit architectural images with **Codex's built-i
 | Pillow | Reads images and creates previews, masks, and PNG files. | Install with the `requirements.txt` command below. |
 | Input image | Needed only when editing an existing building. | Prepare a PNG/JPEG or other supported image you own or have permission to use. |
 
-**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/_SoDam-RenderBoss.git`. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
+**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
 
 PowerShell is Windows' command window. Open **PowerShell** from Start and paste each command below. Keep quotes around paths with spaces. The example `D:\...` is the current PC's folder; replace it with the real path on another PC.
 
@@ -57,7 +57,7 @@ PowerShell is Windows' command window. Open **PowerShell** from Start and paste 
 codex --version
 python --version
 python -m pip --version
-Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss'
+Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex'
 python -m pip install -r requirements.txt
 ```
 
@@ -67,7 +67,7 @@ If `codex` or `python` is not found, finish installing it and open a fresh Power
 
 ```powershell
 python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss\outputs\keyless-marketplace-local'
+codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 ```
@@ -232,7 +232,7 @@ When reporting an issue, inspect the error message and job JSON field names, but
 
 **Q. Is it entirely free and offline?** This is not guaranteed. No API key is a different question from account charges, usage limits, and internet access. Check current conditions for your account in Codex.
 
-**Q. Where can I get this edition?** With access, download private `sodam-ai/_SoDam-RenderBoss`. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.
+**Q. Where can I get this edition?** With access, download private `sodam-ai/SoDam-RenderBoss-Codex`. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.
 
 **Q. Why does `--prepare` not create an image?** Python prepares the job. Codex's built-in tool generates the image; `--finalize` then makes the review files.
 
