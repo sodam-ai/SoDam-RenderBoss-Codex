@@ -1,26 +1,25 @@
 {
   "name": "architectural-render-guard",
-  "version": "0.1.0+codex.20260810150730",
-  "description": "Generate or edit 2K architectural renders with automatic official aspect-ratio selection, first-use environment checks, local key storage, and strict building preservation using GPT and Gemini image models.",
+  "version": "0.2.0+codex.20260926162227",
+  "description": "Keyless architectural generation and editing through Codex built-in image generation with building preservation review.",
   "author": {
-    "name": "m174460635"
+    "name": "SoDam AI Studio"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Architectural Render Guard",
-    "shortDescription": "Generate or edit guarded building renders.",
-    "longDescription": "Architectural Render Guard helps Codex initialize runtime dependencies, store a local iiiiitoken key, generate 2K landscape architectural images when no input image is supplied, edit uploaded building images with nearest official aspect-ratio selection, compare GPT and Gemini outputs, inspect lightweight previews, and show only the accepted full-resolution result while preserving the architectural subject.",
-    "developerName": "m174460635",
+    "shortDescription": "Render buildings with Codex built-in images.",
+    "longDescription": "Generate or edit architectural images using Codex built-in image generation without API keys or Gemini. Prepare guarded prompts, check actual aspect ratio, and visually inspect building preservation.",
+    "developerName": "SoDam AI Studio",
     "category": "Productivity",
     "capabilities": [
       "Write",
       "Interactive"
     ],
     "defaultPrompt": [
-      "Use Architectural Render Guard to generate a 2K landscape architectural image.",
-      "Use Architectural Render Guard to render this building without changing its body.",
-      "Use Architectural Render Guard with these reference images to make one render.",
-      "Use Architectural Render Guard to edit this facade and preserve doors/windows."
+      "Use Architectural Render Guard to generate an architectural image with Codex built-in image generation.",
+      "Edit this building image while preserving its massing, floors, openings, stairs, ramp and signage.",
+      "Use these reference images for materials and environment while preserving the primary building."
     ]
   }
 }

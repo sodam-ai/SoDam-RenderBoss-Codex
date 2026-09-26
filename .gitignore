@@ -11,6 +11,7 @@ htmlcov/
 /architectural-render-guard/
 
 outputs/
+CHECKPOINT.md
 _previews/
 *.log
 

@@ -166,6 +166,17 @@ function Publish-GitHubSnapshot {
 
 Push-Location $pluginRoot
 try {
+    $branch = (git branch --show-current).Trim()
+    $remoteUrl = (git remote get-url origin).Trim()
+    if (-not $branch -or $branch -in @("main", "master")) {
+        throw "Publish from a non-default working branch, then open a PR."
+    }
+    if ($remoteUrl -notmatch '^https://github\.com/sodam-ai/_SoDam-RenderBoss(?:\.git)?$') {
+        throw "Refusing to publish to an unexpected origin: $remoteUrl"
+    }
+    if (Test-Path -LiteralPath (Join-Path $pluginRoot "CHECKPOINT.md")) {
+        throw "Review or move CHECKPOINT.md before publishing; it must not be committed."
+    }
     python -m unittest discover -s tests -v
     if ($LASTEXITCODE -ne 0) {
         throw "Unit tests failed."
@@ -226,10 +237,9 @@ try {
     }
 
     if (-not $SkipPush) {
-        git push origin main
+        git push origin "HEAD:refs/heads/$branch"
         if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Git push failed; publishing the committed snapshot through GitHub API."
-            Publish-GitHubSnapshot -CommitMessage $Message
+            throw "Git push failed. Resolve the error and retry; no API fallback is used."
         }
     }
 
