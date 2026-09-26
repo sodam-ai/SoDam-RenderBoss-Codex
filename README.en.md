@@ -1,4 +1,4 @@
-# Architectural Render Guard — Codex Built-in Image Edition
+# SoDam-RenderBoss-Codex — Codex Built-in Image Edition
 
 > Documentation date: 2026-09-27 · Plugin version: `0.2.0+codex.20260926162227` · Project-folder nickname: `SoDam-RenderBoss-Codex`
 
