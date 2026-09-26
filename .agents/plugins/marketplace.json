@@ -8,7 +8,7 @@
       "name": "architectural-render-guard",
       "source": {
         "source": "url",
-        "url": "https://github.com/sodam-ai/_SoDam-RenderBoss.git",
+        "url": "https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git",
         "ref": "main"
       },
       "policy": {

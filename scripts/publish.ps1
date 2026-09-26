@@ -171,7 +171,7 @@ try {
     if (-not $branch -or $branch -in @("main", "master")) {
         throw "Publish from a non-default working branch, then open a PR."
     }
-    if ($remoteUrl -notmatch '^https://github\.com/sodam-ai/_SoDam-RenderBoss(?:\.git)?$') {
+    if ($remoteUrl -notmatch '^https://github\.com/sodam-ai/SoDam-RenderBoss-Codex(?:\.git)?$') {
         throw "Refusing to publish to an unexpected origin: $remoteUrl"
     }
     if (Test-Path -LiteralPath (Join-Path $pluginRoot "CHECKPOINT.md")) {

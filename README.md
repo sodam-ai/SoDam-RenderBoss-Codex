@@ -1,10 +1,10 @@
 # Architectural Render Guard — Codex 내장 이미지판
 
-> 문서 기준: 2026-09-27 · 플러그인 버전: `0.2.0+codex.20260926162227` · 프로젝트 폴더 별칭: `SoDam-RenderBoss`
+> 문서 기준: 2026-09-27 · 플러그인 버전: `0.2.0+codex.20260926162227` · 프로젝트 폴더 별칭: `SoDam-RenderBoss-Codex`
 
 이 플러그인은 **Codex의 내장 이미지 생성 도구**로 건축 이미지를 새로 만들거나 기존 이미지를 편집할 때, 건물의 형태와 출입 요소를 지키도록 작업을 준비하고 결과를 점검합니다. **사용자 API 키와 Gemini는 필요하지 않습니다.** 단, Codex 로그인과 해당 작업에서 내장 이미지 생성 도구를 사용할 수 있는 권한·연결은 필요합니다. Python 명령만 실행해서 이미지를 생성하는 프로그램은 아닙니다.
 
-**저장소:** 이 무키 버전의 배포 대상은 비공개 [`sodam-ai/_SoDam-RenderBoss`](https://github.com/sodam-ai/_SoDam-RenderBoss)입니다. 접근 권한이 있는 사용자만 내려받을 수 있습니다. 기존 [공개 원본](https://github.com/m174460635/architectural-render-guard)은 API 키를 요구하는 다른 버전이므로 혼동하지 마세요.
+**저장소:** 이 무키 버전의 배포 대상은 비공개 [`sodam-ai/SoDam-RenderBoss-Codex`](https://github.com/sodam-ai/SoDam-RenderBoss-Codex)입니다. 접근 권한이 있는 사용자만 내려받을 수 있습니다. 기존 [공개 원본](https://github.com/m174460635/architectural-render-guard)은 API 키를 요구하는 다른 버전이므로 혼동하지 마세요.
 
 ## 목차
 
@@ -44,7 +44,7 @@
 | Pillow | 이미지를 읽고 미리보기·마스크·PNG를 만듭니다. | 아래 `requirements.txt` 명령으로 설치합니다. |
 | 사용할 이미지 | 기존 건물을 편집할 때만 필요합니다. | 본인 또는 사용 허가를 받은 PNG/JPEG 등의 이미지 파일을 준비하세요. |
 
-**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/_SoDam-RenderBoss.git`을 실행하세요. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
+**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`을 실행하세요. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
 
 PowerShell은 Windows의 명령 입력 창입니다. 시작 메뉴에서 **PowerShell**을 열고, 아래 코드 블록의 명령을 한 줄씩 붙여 넣으세요. 경로에 공백이 있으면 큰따옴표를 유지하세요. 예시의 `D:\...`는 이 PC의 현재 폴더이므로 다른 PC에서는 실제 경로로 바꿔야 합니다.
 
@@ -57,7 +57,7 @@ PowerShell은 Windows의 명령 입력 창입니다. 시작 메뉴에서 **Power
 codex --version
 python --version
 python -m pip --version
-Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss'
+Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex'
 python -m pip install -r requirements.txt
 ```
 
@@ -67,7 +67,7 @@ python -m pip install -r requirements.txt
 
 ```powershell
 python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss\outputs\keyless-marketplace-local'
+codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 ```
@@ -232,7 +232,7 @@ HTML 문서는 브라우저로 열어 읽을 수 있습니다. **HTML을 열어�
 
 **Q. 완전히 무료이고 오프라인인가요?** 그렇게 보장하지 않습니다. API 키가 없다는 것과 계정 요금·사용 한도·인터넷 연결 여부는 별개입니다. 현재 계정 조건은 Codex에서 확인하세요.
 
-**Q. 어디서 이 버전을 받나요?** 접근 권한이 있다면 비공개 `sodam-ai/_SoDam-RenderBoss`에서 받으세요. 공개 원본은 다른 버전입니다. 로컬 마켓플레이스 설치 후 manifest 설명을 확인하세요.
+**Q. 어디서 이 버전을 받나요?** 접근 권한이 있다면 비공개 `sodam-ai/SoDam-RenderBoss-Codex`에서 받으세요. 공개 원본은 다른 버전입니다. 로컬 마켓플레이스 설치 후 manifest 설명을 확인하세요.
 
 **Q. 왜 `--prepare`만으로 이미지가 안 나오나요?** Python은 작업을 준비하고, 실제 생성은 Codex 내장 이미지 도구가 수행합니다. 생성 후 `--finalize`가 결과를 검수 파일로 만듭니다.
 

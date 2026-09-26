@@ -10,7 +10,7 @@ After changing plugin code, skill instructions, references, tests, or manifest:
 4. Never commit API keys, `.env` files, generated images, previews, logs, or
    Python cache files.
 5. Keep `.agents/plugins/marketplace.json` pointed at the private
-   `sodam-ai/_SoDam-RenderBoss` repository and keep the marketplace/plugin names stable.
+   `sodam-ai/SoDam-RenderBoss-Codex` repository and keep the marketplace/plugin names stable.
 
 The publishing script can change local caches and commit files; it must run
 only on a reviewed working branch with the expected private `origin`. Never

@@ -26,10 +26,10 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <!-- BEGIN_MARKDOWN_RENDER -->
 <h1>Architectural Render Guard — Codex Built-in Image Edition</h1>
 <blockquote>
-<p>Documentation date: 2026-09-27 · Plugin version: <code>0.2.0+codex.20260926162227</code> · Project-folder nickname: <code>SoDam-RenderBoss</code></p>
+<p>Documentation date: 2026-09-27 · Plugin version: <code>0.2.0+codex.20260926162227</code> · Project-folder nickname: <code>SoDam-RenderBoss-Codex</code></p>
 </blockquote>
 <p>This plugin helps you create or edit architectural images with <strong>Codex's built-in image generation tool</strong>. It prepares instructions to preserve the building and records checks on the result. <strong>You do not need a user API key or Gemini.</strong> You do need to sign in to Codex and have access to its built-in image tool in the current task. Running the Python command alone does not generate an image.</p>
-<p><strong>Repository:</strong> The distribution target for this keyless edition is private <a href="https://github.com/sodam-ai/_SoDam-RenderBoss"><code>sodam-ai/_SoDam-RenderBoss</code></a>. Only authorized users can download it. The <a href="https://github.com/m174460635/architectural-render-guard">public upstream</a> is a different edition requiring API keys.</p>
+<p><strong>Repository:</strong> The distribution target for this keyless edition is private <a href="https://github.com/sodam-ai/SoDam-RenderBoss-Codex"><code>sodam-ai/SoDam-RenderBoss-Codex</code></a>. Only authorized users can download it. The <a href="https://github.com/m174460635/architectural-render-guard">public upstream</a> is a different edition requiring API keys.</p>
 <h2>Contents</h2>
 <ol>
 <li><a href="#features">Features</a></li>
@@ -98,7 +98,7 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 </tr>
 </tbody>
 </table>
-<p><strong>Getting the keyless project:</strong> Use this local folder or, after receiving private-repository access, run <code>git clone https://github.com/sodam-ai/_SoDam-RenderBoss.git</code>. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that <code>.codex-plugin/plugin.json</code> describes <code>Keyless</code> and <code>Codex built-in</code>; do not run installers from unknown sources.</p>
+<p><strong>Getting the keyless project:</strong> Use this local folder or, after receiving private-repository access, run <code>git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git</code>. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that <code>.codex-plugin/plugin.json</code> describes <code>Keyless</code> and <code>Codex built-in</code>; do not run installers from unknown sources.</p>
 <p>PowerShell is Windows' command window. Open <strong>PowerShell</strong> from Start and paste each command below. Keep quotes around paths with spaces. The example <code>D:\...</code> is the current PC's folder; replace it with the real path on another PC.</p>
 <p><a id="installation"></a></p>
 <h2>3. Installation</h2>
@@ -106,13 +106,13 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <pre><code class="language-powershell">codex --version
 python --version
 python -m pip --version
-Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss'
+Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex'
 python -m pip install -r requirements.txt
 </code></pre>
 <p>If <code>codex</code> or <code>python</code> is not found, finish installing it and open a fresh PowerShell window. This project's Python dependency is <code>Pillow&gt;=10,&lt;13</code>. Install it explicitly as shown instead of relying on <code>--init</code> to install it automatically. Installing Python and Pillow may need a download.</p>
 <h3>3-2. Build and install the marketplace from the current local source</h3>
 <pre><code class="language-powershell">python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss\outputs\keyless-marketplace-local'
+codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 </code></pre>
@@ -365,7 +365,7 @@ python scripts/render_guard.py --list-formats
 <h2>10. FAQ</h2>
 <p><strong>Q. Does it really work without an API key?</strong> Yes. This local edition uses Codex built-in image generation with no user API key or Gemini, and a live generation was verified. Codex sign-in and image-tool access are still required.</p>
 <p><strong>Q. Is it entirely free and offline?</strong> This is not guaranteed. No API key is a different question from account charges, usage limits, and internet access. Check current conditions for your account in Codex.</p>
-<p><strong>Q. Where can I get this edition?</strong> With access, download private <code>sodam-ai/_SoDam-RenderBoss</code>. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.</p>
+<p><strong>Q. Where can I get this edition?</strong> With access, download private <code>sodam-ai/SoDam-RenderBoss-Codex</code>. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.</p>
 <p><strong>Q. Why does <code>--prepare</code> not create an image?</strong> Python prepares the job. Codex's built-in tool generates the image; <code>--finalize</code> then makes the review files.</p>
 <p><strong>Q. Does it guarantee 2K and every building detail?</strong> No. 2K is a request and preservation depends on prompting and human comparison. Only opaque mask regions receive local pixel restoration.</p>
 <p><strong>Q. Can I run it directly on a phone?</strong> The installation, Python, and PowerShell steps here target a Windows PC. Standalone mobile installation and screen behavior were not verified. Viewing the completed image on a phone is separate.</p>
