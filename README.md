@@ -1,4 +1,4 @@
-# Architectural Render Guard — Codex 내장 이미지판
+# SoDam-RenderBoss-Codex — Codex 내장 이미지판
 
 > 문서 기준: 2026-09-27 · 플러그인 버전: `0.2.0+codex.20260926162227` · 프로젝트 폴더 별칭: `SoDam-RenderBoss-Codex`
 
