@@ -42,43 +42,45 @@ This plugin helps you create or edit architectural images with **Codex's built-i
 | Codex CLI | Runs the `codex plugin` installation commands; you can work in the desktop app afterward. | Follow the Windows path in the [official Codex CLI guide](https://learn.chatgpt.com/docs/codex/cli). |
 | Python and pip | Run the local preparation and review scripts. | Install from [Python's official downloads](https://www.python.org/downloads/) and check the PATH option. |
 | Pillow | Reads images and creates previews, masks, and PNG files. | Install with the `requirements.txt` command below. |
-| Git (optional) | Downloads the private repository by command or sends developer changes. | Install [Git for Windows](https://git-scm.com/download/win). Ordinary users receiving an archive do not need it. |
+| Git | Registers the GitHub marketplace or downloads the private repository. | Install [Git for Windows](https://git-scm.com/download/win). It is needed for direct installation from GitHub. |
 | Input image | Needed only when editing an existing building. | Prepare a PNG/JPEG or other supported image you own or have permission to use. |
 
-**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`. With access, you can also use Code → Download ZIP on the GitHub repository. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
+**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`. With access, you can also use Code → Download ZIP on the GitHub repository. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `plugins/architectural-render-guard/.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
 
 PowerShell is Windows' command window. Open **PowerShell** from Start and paste each command below. Keep quotes around paths with spaces. The example `D:\...` is the current PC's folder; replace it with the real path on another PC.
 
 <a id="installation"></a>
 ## 3. Installation
 
-### 3-1. Check programs and install the Python dependency
+### 3-1. Check programs needed for marketplace installation
 
 ```powershell
 codex --version
-python --version
-python -m pip --version
-Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex'
-python -m pip install -r requirements.txt
+git --version
 ```
 
-If `codex` or `python` is not found, finish installing it and open a fresh PowerShell window. This project's Python dependency is `Pillow>=10,<13`. Install it explicitly as shown instead of relying on `--init` to install it automatically. Installing Python and Pillow may need a download.
+If `codex` or `git` is missing, install it and open a fresh PowerShell window. The GitHub installation commands below do not require Python or Pillow. Install those in step 3-3 only if you use the local image preparation and review commands.
 
-### 3-2. Build and install the marketplace from the current local source
+### 3-2. Install the plugin from the GitHub marketplace
+
+First authenticate to GitHub with an account that can access this private repository. Git and Codex CLI are required. These commands register the repository marketplace and install its plugin. **Ordinary installation does not require a Python build command.**
 
 ```powershell
-$marketplaceDir = Join-Path (Get-Location) ('outputs\keyless-marketplace-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-python scripts/build_local_marketplace.py --out-dir $marketplaceDir
-codex plugin marketplace add $marketplaceDir
-codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
+codex plugin marketplace add https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git --ref main
+codex plugin add architectural-render-guard@architectural-render-guard
 codex plugin list
 ```
 
-The output folder name includes the current time to avoid an existing folder. If two runs in the same second collide, choose a different name and retry. Keep using the `$marketplaceDir` variable in the **same PowerShell window**. The builder prints the actual `marketplace_root` to register and refuses to overwrite an existing folder. Confirm that `architectural-render-guard@architectural-render-guard-keyless-local` appears as `installed, enabled`. Distinguish it from the public upstream entry. Open a **new Codex task** so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to `codex plugin marketplace add`.
+Confirm that `architectural-render-guard@architectural-render-guard` is `installed, enabled`. The plugin is installed from GitHub's `plugins/architectural-render-guard/` directory. Installation requires private-repository access. Open a **new Codex task** afterward. For a ZIP or offline transfer, build a local package with `python scripts/build_local_marketplace.py --out-dir <new folder>`, register the resulting folder with `codex plugin marketplace add <output folder>`, and install with `codex plugin add architectural-render-guard@architectural-render-guard-keyless-local`.
 
-### 3-3. Check local readiness
+### 3-3. Use the local preparation and review commands
+
+Open the downloaded repository and run these commands from its root. Install Python and pip first if you do not already have them.
 
 ```powershell
+python --version
+python -m pip --version
+python -m pip install -r requirements.txt
 python scripts/render_guard.py --init --no-install
 python scripts/render_guard.py --list-formats
 ```
@@ -190,7 +192,8 @@ There are two kinds of checks. **Automatic checks** cover file existence, mask f
 | `LICENSES/MIT-upstream.txt` / `NOTICE` | Preserved original MIT license and copyright / source attribution. |
 | `requirements.txt` | Pillow dependency constraint. |
 | `.codex-plugin/plugin.json` | Plugin name, version, and description. |
-| `.agents/plugins/marketplace.json` | Configuration pointing to the private repository; GitHub access is required. |
+| `.agents/plugins/marketplace.json` | Marketplace configuration pointing at the private repository’s `plugins/architectural-render-guard/` directory. |
+| `plugins/architectural-render-guard/` | The installable plugin files committed to GitHub. |
 | `skills/architectural-render-guard/SKILL.md` | Codex agent workflow instructions. |
 | `scripts/render_guard.py` / `scripts/builtin_guard.py` | User CLI / supporting logic. |
 | `scripts/build_local_marketplace.py` | Creates the local install package. |
@@ -234,7 +237,7 @@ When reporting an issue, inspect the error message and job JSON field names, but
 
 **Q. Is it entirely free and offline?** This is not guaranteed. No API key is a different question from account charges, usage limits, and internet access. Check current conditions for your account in Codex.
 
-**Q. Where can I get this edition?** With access, download private `sodam-ai/SoDam-RenderBoss-Codex`. The public upstream is a different edition. Inspect the manifest description after installing the local marketplace.
+**Q. Where can I get this edition?** With access, download private `sodam-ai/SoDam-RenderBoss-Codex`. The public upstream is a different edition. Inspect the plugin manifest description after installation.
 
 **Q. Why does `--prepare` not create an image?** Python prepares the job. Codex's built-in tool generates the image; `--finalize` then makes the review files.
 
