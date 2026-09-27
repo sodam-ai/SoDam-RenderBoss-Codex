@@ -30,7 +30,7 @@
 - **부분 편집:** 원본과 크기가 같은 RGBA PNG 마스크의 **투명한 곳만 편집**하고, 불투명한 곳은 마지막에 원본 픽셀을 되돌립니다. 경계의 이음새는 눈으로 확인해야 합니다.
 - **검수 자료:** 입력·출력 미리보기, 실제 출력 크기, 가로세로 비율 검사, 오류 목록을 남깁니다. 건물 형태가 정확히 유지됐는지는 사람이 원본과 비교해야 합니다.
 
-**한계:** 기본값 `2K`는 생성 요청이지 출력 보장이 아닙니다. 실제 내장 도구 출력은 별도로 측정합니다. 앞선 실사용 점검에서는 `1672×941`이 나왔습니다. 정확한 픽셀 크기, 건축 요소의 완전한 동일성, 스트리밍 중간 이미지는 보장되지 않습니다. 필요하면 검수 후 별도 도구에서 업스케일할 수 있습니다.
+**한계:** 기본값 `2K`는 생성 요청이지 출력 보장이 아닙니다. 실제 내장 도구 출력은 별도로 측정합니다. 2026-09-27 실제 생성·편집 점검에서 각각 `1672×941`이 나왔습니다. 정확한 픽셀 크기, 건축 요소의 완전한 동일성, 스트리밍 중간 이미지는 보장되지 않습니다. 필요하면 검수 후 별도 도구에서 업스케일할 수 있습니다.
 
 <a id="prerequisites"></a>
 ## 2. 준비물과 다운로드
@@ -42,9 +42,10 @@
 | Codex CLI | 아래 `codex plugin` 설치 명령을 실행합니다. 설치 후 데스크톱 앱에서 작업할 수 있습니다. | [공식 Codex CLI 안내](https://learn.chatgpt.com/docs/codex/cli)의 Windows 절차를 따르세요. |
 | Python과 pip | 로컬 이미지 준비·검수 스크립트를 실행합니다. | [Python 공식 다운로드](https://www.python.org/downloads/)에서 설치하고, 설치 중 PATH 추가 옵션을 확인하세요. |
 | Pillow | 이미지를 읽고 미리보기·마스크·PNG를 만듭니다. | 아래 `requirements.txt` 명령으로 설치합니다. |
+| Git(선택) | 비공개 저장소를 명령으로 내려받거나 개발 변경을 올릴 때 사용합니다. | [Git for Windows](https://git-scm.com/download/win)에서 설치하세요. 압축본을 받는 일반 사용자에게는 필요하지 않습니다. |
 | 사용할 이미지 | 기존 건물을 편집할 때만 필요합니다. | 본인 또는 사용 허가를 받은 PNG/JPEG 등의 이미지 파일을 준비하세요. |
 
-**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`을 실행하세요. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
+**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`을 실행하세요. 접근 권한이 있다면 GitHub 저장소의 Code → Download ZIP으로 받을 수도 있습니다. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
 
 PowerShell은 Windows의 명령 입력 창입니다. 시작 메뉴에서 **PowerShell**을 열고, 아래 코드 블록의 명령을 한 줄씩 붙여 넣으세요. 경로에 공백이 있으면 큰따옴표를 유지하세요. 예시의 `D:\...`는 이 PC의 현재 폴더이므로 다른 PC에서는 실제 경로로 바꿔야 합니다.
 
@@ -66,15 +67,25 @@ python -m pip install -r requirements.txt
 ### 3-2. 현재 로컬 소스로 설치 가능한 마켓플레이스 만들기
 
 ```powershell
-python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
+$marketplaceDir = Join-Path (Get-Location) ('outputs\keyless-marketplace-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+python scripts/build_local_marketplace.py --out-dir $marketplaceDir
+codex plugin marketplace add $marketplaceDir
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 ```
 
-빌더 출력의 `marketplace_root`가 실제 등록 경로입니다. 이미 같은 출력 폴더가 있으면 빌더가 덮어쓰지 않고 실패합니다. `outputs/keyless-marketplace-local-2`처럼 **새 폴더 이름**을 사용하세요. 목록에서 `architectural-render-guard@architectural-render-guard-keyless-local`이 `installed, enabled`인지 확인하세요. 기존 공개 원본 항목과 구별해야 합니다. 설치 후 Codex에서 **새 작업**을 시작해 플러그인 스킬을 불러오세요. 다른 PC에서 패키지만 받은 경우 빌드 명령을 건너뛰고, 압축 해제된 패키지의 마켓플레이스 루트를 `codex plugin marketplace add`에 전달합니다.
+출력 폴더 이름에는 현재 시각을 넣어 기존 폴더와 겹치지 않게 합니다. 같은 초에 다시 실행해 폴더가 겹치면 이름을 바꿔 재시도하세요. `$marketplaceDir` 변수는 **같은 PowerShell 창**에서 계속 사용해야 합니다. 빌더 출력의 `marketplace_root`가 실제 등록 경로입니다. 빌더는 기존 폴더를 덮어쓰지 않습니다. 목록에서 `architectural-render-guard@architectural-render-guard-keyless-local`이 `installed, enabled`인지 확인하세요. 기존 공개 원본 항목과 구별해야 합니다. 설치 후 Codex에서 **새 작업**을 시작해 플러그인 스킬을 불러오세요. 다른 PC에서 패키지만 받은 경우 빌드 명령을 건너뛰고, 압축 해제된 패키지의 마켓플레이스 루트를 `codex plugin marketplace add`에 전달합니다.
 
-### 3-3. 개발자가 테스트하고 비공개 저장소에 반영하기
+### 3-3. 실행 가능 여부 확인
+
+```powershell
+python scripts/render_guard.py --init --no-install
+python scripts/render_guard.py --list-formats
+```
+
+`--init`은 스킬 파일과 Pillow의 로컬 상태를 확인합니다. **내장 이미지 도구 사용 가능 여부는 확인하지 않습니다.** Codex의 새 작업에서 실제 이미지 생성 요청을 해야 그 부분을 확인할 수 있습니다. 인터넷 또는 계정 접근이 없는 상태에서 이 플러그인만으로 이미지를 만들 수는 없습니다.
+
+### 3-4. 개발자가 테스트하고 비공개 저장소에 반영하기
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -85,18 +96,9 @@ git status --short
 git push origin builtin-imagegen
 ```
 
-테스트가 실패하면 배포하지 말고 원인을 고치세요. 빌드 폴더가 이미 있으면 다른 이름을 쓰세요. `git push`는 개발자가 검수·커밋한 작업 branch에만 사용합니다. GitHub에서 `builtin-imagegen` → `main` PR을 열어 변경 파일과 테스트를 확인한 뒤 병합하세요. **`main`에 직접 push하거나 `scripts/publish.ps1`을 일반 사용자가 실행하지 마세요.** 이 프로젝트에는 사용자 API 키 환경 변수가 필요하지 않습니다. 설치 시 로그인은 Codex가 처리합니다.
+Ruff는 개발자용 검사 도구입니다. 없으면 `python -m pip install ruff`로 설치하세요. 일반 사용자에게는 필요하지 않습니다. 테스트가 실패하면 배포하지 말고 원인을 고치세요. 빌드 폴더가 이미 있으면 다른 이름을 쓰세요. `git push`는 개발자가 검수·커밋한 작업 branch에만 사용합니다. GitHub에서 `builtin-imagegen` → `main` PR을 열어 변경 파일과 테스트를 확인한 뒤 병합하세요. **`main`에 직접 push하거나 `scripts/publish.ps1`을 일반 사용자가 실행하지 마세요.** 이 프로젝트에는 사용자 API 키 환경 변수가 필요하지 않습니다. 설치 시 로그인은 Codex가 처리합니다.
 
 `codex plugin marketplace add`/`codex plugin add`는 이 PC의 CLI `0.156.1` 도움말과 설치 상태에서 확인한 명령입니다. 다른 버전에서는 `codex plugin --help`를 확인하세요. 이 문서의 설치 절차는 CLI를 사용합니다. 데스크톱 앱만으로 설치하는 별도 절차는 검증하지 않았습니다.
-
-### 3-3. 실행 가능 여부 확인
-
-```powershell
-python scripts/render_guard.py --init --no-install
-python scripts/render_guard.py --list-formats
-```
-
-`--init`은 스킬 파일과 Pillow의 로컬 상태를 확인합니다. **내장 이미지 도구 사용 가능 여부는 확인하지 않습니다.** Codex의 새 작업에서 실제 이미지 생성 요청을 해야 그 부분을 확인할 수 있습니다. 인터넷 또는 계정 접근이 없는 상태에서 이 플러그인만으로 이미지를 만들 수는 없습니다.
 
 <a id="quick-start"></a>
 ## 4. 빠른 시작: 처음 사용하는 사람
@@ -217,7 +219,7 @@ HTML 문서는 브라우저로 열어 읽을 수 있습니다. **HTML을 열어�
 | 플러그인이 목록에 없거나 API 키를 요청함 | `codex plugin list`에서 이름 끝이 `@architectural-render-guard-keyless-local`인지 확인하세요. 공개 항목과 혼동하지 말고 새 Codex 작업을 시작하세요. |
 | 내장 이미지 도구를 사용할 수 없음 | Codex 로그인, 계정·작업의 이미지 도구 접근, 연결 상태를 확인하세요. 이 플러그인에는 API 키나 Gemini 대체 경로가 없습니다. |
 | `Destination already exists` / `Job already exists` / `Preview already exists` | 출력 폴더·`--prefix`·`--attempt`를 새 값으로 지정하세요. 기존 결과를 지우거나 덮어쓰지 마세요. |
-| `Input image does not exist` / 폴더 이동 후 실패 | 실제 이미지 경로를 확인하고 현재 위치에서 새 `--prepare`를 실행하세요. 이전 작업 JSON의 절대경로를 그대로 재사용하지 마세요. |
+| `Input image does not exist` / 폴더 이동 후 실패 | 실제 이미지 경로를 확인하고 현재 위치에서 새 `--prepare`를 실행하세요. 이전 작업 JSON의 절대경로를 그대로 재사용하지 마세요. 로컬 마켓플레이스 폴더를 옮겼다면 새 위치를 `codex plugin marketplace add`로 다시 등록하고 플러그인을 설치한 뒤 새 작업을 여세요. |
 | 마스크 RGBA·크기 오류 | 투명도가 있는 RGBA PNG로 저장하고 원본 이미지와 픽셀 가로·세로 크기를 같게 하세요. |
 | 결과가 `1672×941`이고 요청은 `2752×1536` | `2K` 참고 크기는 보장되지 않습니다. 실제 크기를 확인하고 필요하면 검수 후 별도 업스케일을 사용하세요. 명시 `--size` 불일치는 실패로 기록됩니다. |
 | 비율·크기 검사 실패 또는 `errors`가 있음 | 실패한 시도를 채택하지 말고 출력과 manifest를 확인한 뒤 새 `--attempt`로 다시 요청하세요. |
