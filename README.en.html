@@ -111,7 +111,7 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <pre><code class="language-powershell">codex --version
 git --version
 </code></pre>
-<p>If <code>codex</code> or <code>git</code> is missing, install it and open a fresh PowerShell window. The GitHub installation commands below do not require Python or Pillow. Install those in step 3-3 only if you use the local image preparation and review commands.</p>
+<p>If <code>codex</code> or <code>git</code> is missing, install it and open a fresh PowerShell window. <strong>Registering and installing the marketplace plugin</strong> does not require Python or Pillow. <strong>Actually using the installed plugin to work on images</strong> does require Python and Pillow for its preparation and finalization scripts, so complete step 3-3 as well.</p>
 <h3>3-2. Install the plugin from the GitHub marketplace</h3>
 <p>First authenticate to GitHub with an account that can access this private repository. Git and Codex CLI are required. These commands register the repository marketplace and install its plugin. <strong>Ordinary installation does not require a Python build command.</strong></p>
 <pre><code class="language-powershell">codex plugin marketplace add https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git --ref main
@@ -119,23 +119,23 @@ codex plugin add architectural-render-guard@architectural-render-guard
 codex plugin list
 </code></pre>
 <p>Confirm that <code>architectural-render-guard@architectural-render-guard</code> is <code>installed, enabled</code>. The plugin is installed from GitHub's <code>plugins/architectural-render-guard/</code> directory. Installation requires private-repository access. Open a <strong>new Codex task</strong> afterward. For a ZIP or offline transfer, build a local package with <code>python scripts/build_local_marketplace.py --out-dir &lt;new folder&gt;</code>, register the resulting folder with <code>codex plugin marketplace add &lt;output folder&gt;</code>, and install with <code>codex plugin add architectural-render-guard@architectural-render-guard-keyless-local</code>.</p>
-<h3>3-3. Use the local preparation and review commands</h3>
-<p>Open the downloaded repository and run these commands from its root. Install Python and pip first if you do not already have them.</p>
+<h3>3-3. Prepare Python and Pillow for actual image work</h3>
+<p><strong>Using the marketplace-installed plugin in a Codex conversation also requires</strong> Python and Pillow. Install Python and pip, then run the commands below. The <code>requirements.txt</code> command and the following manual checks assume you separately downloaded the private repository and opened its <strong>root directory</strong>. If you installed only the plugin, use <code>python -m pip install &quot;Pillow&gt;=10,&lt;13&quot;</code> for the same dependency before using it in Codex.</p>
 <pre><code class="language-powershell">python --version
 python -m pip --version
 python -m pip install -r requirements.txt
 python scripts/render_guard.py --init --no-install
 python scripts/render_guard.py --list-formats
 </code></pre>
+<p><code>--init</code> checks the local skill file and Pillow. It <strong>does not test access to the built-in image tool</strong>. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.</p>
 <h3>3-4. Developer testing and private repository delivery</h3>
 <pre><code class="language-powershell">python -m unittest discover -s tests -v
 python -m ruff check scripts tests
 python -m compileall -q scripts tests
 python scripts/build_local_marketplace.py --out-dir outputs/release-check
 git status --short
-git push origin builtin-imagegen
 </code></pre>
-<p>Ruff is a developer lint tool. If missing, install it with <code>python -m pip install ruff</code>; ordinary users do not need it. If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a <code>builtin-imagegen</code> → <code>main</code> PR on GitHub, review changed files and tests, then merge it. <strong>Do not push directly to <code>main</code> or run <code>scripts/publish.ps1</code> during normal use.</strong> This project needs no user API-key environment variable. Codex handles sign-in.</p>
+<p>Ruff is a developer lint tool. If missing, install it with <code>python -m pip install ruff</code>; ordinary users do not need it. If a test fails, fix it before delivery. Choose a new build folder if the destination exists. Developers push only the <strong>current reviewed and committed working branch</strong>, then open a PR from that branch to <code>main</code> and review the changed files and tests. <strong>Do not push directly to <code>main</code> or run <code>scripts/publish.ps1</code> during normal use.</strong> This project needs no user API-key environment variable. Codex handles sign-in.</p>
 <p>The <code>codex plugin marketplace add</code> and <code>codex plugin add</code> syntax was checked against this PC's CLI <code>0.156.1</code> help and installation status. Check <code>codex plugin --help</code> if your version differs. This documented installation uses the CLI; a separate desktop-only installation path was not verified.</p>
 <p><a id="quick-start"></a></p>
 <h2>4. Quick start for first-time users</h2>
@@ -278,15 +278,16 @@ git push origin builtin-imagegen
 <td>Marketplace configuration pointing at the private repository’s <code>plugins/architectural-render-guard/</code> directory.</td>
 </tr>
 <tr>
+<td><code>plugins/architectural-render-guard/</code></td>
+<td>The installable plugin files committed to GitHub.</td>
+</tr>
+<tr>
 <td><code>skills/architectural-render-guard/SKILL.md</code></td>
 <td>Codex agent workflow instructions.</td>
 </tr>
 <tr>
 <td><code>scripts/render_guard.py</code> / <code>scripts/builtin_guard.py</code></td>
 <td>User CLI / supporting logic.</td>
-</tr>
-<tr>
-<td><code>plugins/architectural-render-guard/</code></td><td>The installable plugin files committed to GitHub.</td>
 </tr>
 <tr>
 <td><code>scripts/build_local_marketplace.py</code></td>
@@ -327,16 +328,16 @@ git push origin builtin-imagegen
 </thead>
 <tbody>
 <tr>
-<td><code>codex</code> or <code>python</code> not found</td>
-<td>Finish the official installation, open a new PowerShell window, then retry <code>codex --version</code> and <code>python --version</code>.</td>
+<td><code>codex</code>, <code>git</code>, or <code>python</code> not found</td>
+<td>Finish the official installation for the missing program, open a new PowerShell window, then retry <code>codex --version</code>, <code>git --version</code>, and <code>python --version</code>.</td>
 </tr>
 <tr>
 <td><code>Pillow is missing</code> / <code>No module named PIL</code></td>
-<td>Run <code>python -m pip install -r requirements.txt</code> in the project root. Use the same <code>python</code> to install and run.</td>
+<td>If you have the repository root, run <code>python -m pip install -r requirements.txt</code>; if you installed only the plugin, run <code>python -m pip install &quot;Pillow&gt;=10,&lt;13&quot;</code>. Use the same <code>python</code> for installation and the job.</td>
 </tr>
 <tr>
 <td>Plugin missing or asks for an API key</td>
-<td>Check <code>codex plugin list</code> for the selector ending <code>@architectural-render-guard-keyless-local</code>. Do not confuse it with the public entry; start a new Codex task.</td>
+<td>For direct GitHub installation, <code>codex plugin list</code> should show <code>architectural-render-guard@architectural-render-guard</code>. For a local package, check for <code>@architectural-render-guard-keyless-local</code>. Do not confuse either with public upstream; start a new Codex task.</td>
 </tr>
 <tr>
 <td>Built-in image tool unavailable</td>
@@ -384,7 +385,7 @@ git push origin builtin-imagegen
 <summary>Expand: What changed in the current local keyless edition</summary>
 <div>
 <p>The former external image API/Gemini route was replaced with a prepare → generate → finalize workflow using Codex built-in image generation. No user API key is required.</p>
-<ul><li>Supports new-image creation, editing, multiple references, building-preservation instructions, RGBA mask compositing, input/output previews, and attempt-specific records.</li><li>Records actual size and ratio; an explicit pixel-size mismatch fails. Exact 2K pixels and semantic preservation from the built-in tool are not guaranteed.</li><li>Documents private delivery, Apache 2.0 for new contributions, preserved upstream MIT notice, local marketplace builder, and automated tests.</li></ul>
+<ul><li>Supports new-image creation, editing, multiple references, building-preservation instructions, RGBA mask compositing, input/output previews, and attempt-specific records.</li><li>Records actual size and ratio; an explicit pixel-size mismatch fails. Exact 2K pixels and semantic preservation from the built-in tool are not guaranteed.</li><li>Direct installation from the private GitHub marketplace was checked; a local package builder and automated tests are included. New contributions use Apache 2.0, and the upstream MIT notice is preserved.</li></ul>
 </div>
 </details>
 <p><a id="legal"></a></p>
