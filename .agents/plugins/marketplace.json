@@ -1,14 +1,15 @@
 {
   "name": "architectural-render-guard",
   "interface": {
-    "displayName": "Architectural Render Guard"
+    "displayName": "SoDam RenderBoss"
   },
   "plugins": [
     {
       "name": "architectural-render-guard",
       "source": {
-        "source": "url",
+        "source": "git-subdir",
         "url": "https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git",
+        "path": "./plugins/architectural-render-guard",
         "ref": "main"
       },
       "policy": {

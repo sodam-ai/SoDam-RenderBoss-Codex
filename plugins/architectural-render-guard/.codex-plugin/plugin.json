@@ -1,0 +1,25 @@
+{
+  "name": "architectural-render-guard",
+  "version": "0.2.0+codex.20260926162227",
+  "description": "Keyless architectural generation and editing through Codex built-in image generation with building preservation review.",
+  "author": {
+    "name": "SoDam AI Studio"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Architectural Render Guard",
+    "shortDescription": "Render buildings with Codex built-in images.",
+    "longDescription": "Generate or edit architectural images using Codex built-in image generation without API keys or Gemini. Prepare guarded prompts, check actual aspect ratio, and visually inspect building preservation.",
+    "developerName": "SoDam AI Studio",
+    "category": "Productivity",
+    "capabilities": [
+      "Write",
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Use Architectural Render Guard to generate an architectural image with Codex built-in image generation.",
+      "Edit this building image while preserving its massing, floors, openings, stairs, ramp and signage.",
+      "Use these reference images for materials and environment while preserving the primary building."
+    ]
+  }
+}

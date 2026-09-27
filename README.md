@@ -42,43 +42,45 @@
 | Codex CLI | 아래 `codex plugin` 설치 명령을 실행합니다. 설치 후 데스크톱 앱에서 작업할 수 있습니다. | [공식 Codex CLI 안내](https://learn.chatgpt.com/docs/codex/cli)의 Windows 절차를 따르세요. |
 | Python과 pip | 로컬 이미지 준비·검수 스크립트를 실행합니다. | [Python 공식 다운로드](https://www.python.org/downloads/)에서 설치하고, 설치 중 PATH 추가 옵션을 확인하세요. |
 | Pillow | 이미지를 읽고 미리보기·마스크·PNG를 만듭니다. | 아래 `requirements.txt` 명령으로 설치합니다. |
-| Git(선택) | 비공개 저장소를 명령으로 내려받거나 개발 변경을 올릴 때 사용합니다. | [Git for Windows](https://git-scm.com/download/win)에서 설치하세요. 압축본을 받는 일반 사용자에게는 필요하지 않습니다. |
+| Git | GitHub 마켓플레이스를 등록하거나 비공개 저장소를 내려받습니다. | [Git for Windows](https://git-scm.com/download/win)에서 설치하세요. GitHub에서 바로 설치할 때 필요합니다. |
 | 사용할 이미지 | 기존 건물을 편집할 때만 필요합니다. | 본인 또는 사용 허가를 받은 PNG/JPEG 등의 이미지 파일을 준비하세요. |
 
-**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`을 실행하세요. 접근 권한이 있다면 GitHub 저장소의 Code → Download ZIP으로 받을 수도 있습니다. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
+**무키 프로젝트를 받는 방법:** 이 로컬 폴더를 사용하거나 비공개 저장소 접근 권한을 받은 뒤 `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`을 실행하세요. 접근 권한이 있다면 GitHub 저장소의 Code → Download ZIP으로 받을 수도 있습니다. 권한이 없다면 소유자가 제공한 패키지/압축본을 받으세요. 공개 원본을 무키 버전의 다운로드처로 쓰지 마세요. 패키지의 `plugins/architectural-render-guard/.codex-plugin/plugin.json` 설명에 `Keyless`와 `Codex built-in`이 있는지 확인하고, 출처를 모르는 설치 스크립트는 실행하지 마세요.
 
 PowerShell은 Windows의 명령 입력 창입니다. 시작 메뉴에서 **PowerShell**을 열고, 아래 코드 블록의 명령을 한 줄씩 붙여 넣으세요. 경로에 공백이 있으면 큰따옴표를 유지하세요. 예시의 `D:\...`는 이 PC의 현재 폴더이므로 다른 PC에서는 실제 경로로 바꿔야 합니다.
 
 <a id="installation"></a>
 ## 3. 설치
 
-### 3-1. 프로그램 확인과 Python 의존성 설치
+### 3-1. 마켓플레이스 설치에 필요한 프로그램 확인
 
 ```powershell
 codex --version
-python --version
-python -m pip --version
-Set-Location 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex'
-python -m pip install -r requirements.txt
+git --version
 ```
 
-`codex` 또는 `python`을 찾지 못하면 해당 프로그램을 설치한 뒤 PowerShell을 새로 여세요. 이 프로젝트의 Python 의존성은 `Pillow>=10,<13`입니다. 일반 사용자는 `--init`의 자동 설치에 의존하기보다 위 명령으로 먼저 설치하세요. Python과 Pillow 설치에는 다운로드가 필요할 수 있습니다.
+`codex`나 `git`을 찾지 못하면 먼저 설치하고 PowerShell을 새로 여세요. 아래 GitHub 설치 명령에는 Python과 Pillow가 필요하지 않습니다. 로컬 이미지 준비·검수 명령을 사용할 때만 3-3단계에서 설치하세요.
 
-### 3-2. 현재 로컬 소스로 설치 가능한 마켓플레이스 만들기
+### 3-2. GitHub 마켓플레이스에서 플러그인 설치
+
+비공개 저장소 접근 권한이 있는 계정으로 GitHub 인증을 먼저 완료하세요. Git과 Codex CLI가 필요합니다. 다음 명령은 저장소의 마켓플레이스를 등록하고 그 안의 플러그인을 설치합니다. **일반 설치에 Python 빌드 명령은 필요하지 않습니다.**
 
 ```powershell
-$marketplaceDir = Join-Path (Get-Location) ('outputs\keyless-marketplace-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-python scripts/build_local_marketplace.py --out-dir $marketplaceDir
-codex plugin marketplace add $marketplaceDir
-codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
+codex plugin marketplace add https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git --ref main
+codex plugin add architectural-render-guard@architectural-render-guard
 codex plugin list
 ```
 
-출력 폴더 이름에는 현재 시각을 넣어 기존 폴더와 겹치지 않게 합니다. 같은 초에 다시 실행해 폴더가 겹치면 이름을 바꿔 재시도하세요. `$marketplaceDir` 변수는 **같은 PowerShell 창**에서 계속 사용해야 합니다. 빌더 출력의 `marketplace_root`가 실제 등록 경로입니다. 빌더는 기존 폴더를 덮어쓰지 않습니다. 목록에서 `architectural-render-guard@architectural-render-guard-keyless-local`이 `installed, enabled`인지 확인하세요. 기존 공개 원본 항목과 구별해야 합니다. 설치 후 Codex에서 **새 작업**을 시작해 플러그인 스킬을 불러오세요. 다른 PC에서 패키지만 받은 경우 빌드 명령을 건너뛰고, 압축 해제된 패키지의 마켓플레이스 루트를 `codex plugin marketplace add`에 전달합니다.
+목록에서 `architectural-render-guard@architectural-render-guard`가 `installed, enabled`인지 확인하세요. 플러그인은 GitHub의 `plugins/architectural-render-guard/`에서 설치됩니다. 비공개 저장소 권한이 없으면 설치할 수 없습니다. 설치 후 Codex에서 **새 작업**을 시작하세요. ZIP으로 받았거나 오프라인으로 전달받았다면 `python scripts/build_local_marketplace.py --out-dir <새 폴더>`로 로컬 패키지를 만든 뒤 출력된 폴더를 `codex plugin marketplace add <출력 폴더>`로 등록하고 `codex plugin add architectural-render-guard@architectural-render-guard-keyless-local`로 설치하세요.
 
-### 3-3. 실행 가능 여부 확인
+### 3-3. 로컬 이미지 준비·검수 명령 사용하기
+
+GitHub에서 받은 저장소를 연 뒤 프로젝트 최상위 폴더에서 실행하세요. Python과 pip가 없다면 먼저 설치합니다.
 
 ```powershell
+python --version
+python -m pip --version
+python -m pip install -r requirements.txt
 python scripts/render_guard.py --init --no-install
 python scripts/render_guard.py --list-formats
 ```
@@ -190,7 +192,8 @@ python scripts/render_guard.py --prepare --image 'C:\images\building.png' --lock
 | `LICENSES/MIT-upstream.txt` / `NOTICE` | 원본 MIT 허락·저작권 표시 / 원본과 새 기여분의 출처 안내. |
 | `requirements.txt` | Pillow 설치 조건. |
 | `.codex-plugin/plugin.json` | 플러그인 이름·버전·설명. |
-| `.agents/plugins/marketplace.json` | 비공개 저장소를 가리키는 설정. 설치에는 GitHub 접근 권한이 필요합니다. |
+| `.agents/plugins/marketplace.json` | 비공개 저장소의 `plugins/architectural-render-guard/`를 설치 대상으로 가리키는 마켓플레이스 설정. |
+| `plugins/architectural-render-guard/` | GitHub에 포함된 실제 설치용 플러그인 파일. |
 | `skills/architectural-render-guard/SKILL.md` | Codex 에이전트의 이미지 작업 순서. |
 | `scripts/render_guard.py` / `scripts/builtin_guard.py` | 사용자 CLI / 보조 로직. |
 | `scripts/build_local_marketplace.py` | 로컬 설치 패키지 생성. |
@@ -234,7 +237,7 @@ HTML 문서는 브라우저로 열어 읽을 수 있습니다. **HTML을 열어�
 
 **Q. 완전히 무료이고 오프라인인가요?** 그렇게 보장하지 않습니다. API 키가 없다는 것과 계정 요금·사용 한도·인터넷 연결 여부는 별개입니다. 현재 계정 조건은 Codex에서 확인하세요.
 
-**Q. 어디서 이 버전을 받나요?** 접근 권한이 있다면 비공개 `sodam-ai/SoDam-RenderBoss-Codex`에서 받으세요. 공개 원본은 다른 버전입니다. 로컬 마켓플레이스 설치 후 manifest 설명을 확인하세요.
+**Q. 어디서 이 버전을 받나요?** 접근 권한이 있다면 비공개 `sodam-ai/SoDam-RenderBoss-Codex`에서 받으세요. 공개 원본은 다른 버전입니다. 설치 후 플러그인 manifest 설명을 확인하세요.
 
 **Q. 왜 `--prepare`만으로 이미지가 안 나오나요?** Python은 작업을 준비하고, 실제 생성은 Codex 내장 이미지 도구가 수행합니다. 생성 후 `--finalize`가 결과를 검수 파일로 만듭니다.
 

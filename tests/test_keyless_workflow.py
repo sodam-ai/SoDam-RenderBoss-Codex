@@ -257,6 +257,19 @@ class KeylessWorkflowTests(unittest.TestCase):
                 render_guard.prepare(options(root, image=[primary], mask=mask,
                     prompt="", style="edit", locked_subject="One floor"))
 
+    def test_committed_marketplace_plugin_matches_sources(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        marketplace = json.loads((repo / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
+        entry = marketplace["plugins"][0]
+        self.assertEqual(entry["source"]["source"], "git-subdir")
+        self.assertEqual(entry["source"]["path"], "./plugins/architectural-render-guard")
+        plugin = repo / "plugins/architectural-render-guard"
+        manifest = json.loads((plugin / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(entry["name"], manifest["name"])
+        for relative in build_local_marketplace.FILES:
+            with self.subTest(relative=relative):
+                self.assertEqual((repo / relative).read_bytes(), (plugin / relative).read_bytes())
+
     def test_local_package_contains_keyless_source_only(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             destination = Path(folder) / "marketplace"
