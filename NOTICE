@@ -4,3 +4,5 @@ Based on architectural-render-guard by m174460635, Copyright (c) 2026 m174460635
 The original code and documentation retain the MIT License and notice in LICENSES/MIT-upstream.txt.
 New contributions are licensed under Apache License, Version 2.0; see LICENSE.
 This attribution does not grant rights to third-party input images or generated outputs.
+Original project: https://github.com/m174460635/architectural-render-guard
+This edition modifies the upstream render script, publishing script, plugin metadata, skill instructions, and documentation; it adds the keyless image workflow and local marketplace builder. The upstream MIT notice remains in LICENSES/MIT-upstream.txt.
