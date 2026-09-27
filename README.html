@@ -111,7 +111,7 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <pre><code class="language-powershell">codex --version
 git --version
 </code></pre>
-<p><code>codex</code>나 <code>git</code>을 찾지 못하면 먼저 설치하고 PowerShell을 새로 여세요. 아래 GitHub 설치 명령에는 Python과 Pillow가 필요하지 않습니다. 로컬 이미지 준비·검수 명령을 사용할 때만 3-3단계에서 설치하세요.</p>
+<p><code>codex</code>나 <code>git</code>을 찾지 못하면 먼저 설치하고 PowerShell을 새로 여세요. <strong>마켓플레이스 등록·설치 자체</strong>에는 Python과 Pillow가 필요하지 않습니다. 그러나 <strong>설치한 플러그인으로 실제 이미지를 작업할 때</strong>는 준비·마무리 스크립트에 Python과 Pillow가 필요하므로 3-3단계도 완료하세요.</p>
 <h3>3-2. GitHub 마켓플레이스에서 플러그인 설치</h3>
 <p>비공개 저장소 접근 권한이 있는 계정으로 GitHub 인증을 먼저 완료하세요. Git과 Codex CLI가 필요합니다. 다음 명령은 저장소의 마켓플레이스를 등록하고 그 안의 플러그인을 설치합니다. <strong>일반 설치에 Python 빌드 명령은 필요하지 않습니다.</strong></p>
 <pre><code class="language-powershell">codex plugin marketplace add https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git --ref main
@@ -119,23 +119,23 @@ codex plugin add architectural-render-guard@architectural-render-guard
 codex plugin list
 </code></pre>
 <p>목록에서 <code>architectural-render-guard@architectural-render-guard</code>가 <code>installed, enabled</code>인지 확인하세요. 플러그인은 GitHub의 <code>plugins/architectural-render-guard/</code>에서 설치됩니다. 비공개 저장소 권한이 없으면 설치할 수 없습니다. 설치 후 Codex에서 <strong>새 작업</strong>을 시작하세요. ZIP으로 받았거나 오프라인으로 전달받았다면 <code>python scripts/build_local_marketplace.py --out-dir &lt;새 폴더&gt;</code>로 로컬 패키지를 만든 뒤 출력된 폴더를 <code>codex plugin marketplace add &lt;출력 폴더&gt;</code>로 등록하고 <code>codex plugin add architectural-render-guard@architectural-render-guard-keyless-local</code>로 설치하세요.</p>
-<h3>3-3. 로컬 이미지 준비·검수 명령 사용하기</h3>
-<p>GitHub에서 받은 저장소를 연 뒤 프로젝트 최상위 폴더에서 실행하세요. Python과 pip가 없다면 먼저 설치합니다.</p>
+<h3>3-3. 실제 이미지 작업에 필요한 Python·Pillow 준비</h3>
+<p>마켓플레이스로 설치한 플러그인을 <strong>Codex 대화에서 사용할 때도</strong> Python과 Pillow가 필요합니다. Python과 pip를 설치하고 아래 명령을 실행하세요. <code>requirements.txt</code> 명령과 뒤의 수동 점검 명령은 비공개 저장소를 별도로 내려받아 그 <strong>최상위 폴더</strong>에서 실행하는 방법입니다. 저장소를 따로 받지 않고 플러그인만 설치했다면 <code>python -m pip install &quot;Pillow&gt;=10,&lt;13&quot;</code>로 같은 의존성을 설치한 뒤 Codex에서 사용하세요.</p>
 <pre><code class="language-powershell">python --version
 python -m pip --version
 python -m pip install -r requirements.txt
 python scripts/render_guard.py --init --no-install
 python scripts/render_guard.py --list-formats
 </code></pre>
+<p><code>--init</code>은 스킬 파일과 Pillow의 로컬 상태를 확인합니다. <strong>내장 이미지 도구 사용 가능 여부는 확인하지 않습니다.</strong> Codex의 새 작업에서 실제 이미지 생성 요청을 해야 그 부분을 확인할 수 있습니다. 인터넷 또는 계정 접근이 없는 상태에서 이 플러그인만으로 이미지를 만들 수는 없습니다.</p>
 <h3>3-4. 개발자가 테스트하고 비공개 저장소에 반영하기</h3>
 <pre><code class="language-powershell">python -m unittest discover -s tests -v
 python -m ruff check scripts tests
 python -m compileall -q scripts tests
 python scripts/build_local_marketplace.py --out-dir outputs/release-check
 git status --short
-git push origin builtin-imagegen
 </code></pre>
-<p>Ruff는 개발자용 검사 도구입니다. 없으면 <code>python -m pip install ruff</code>로 설치하세요. 일반 사용자에게는 필요하지 않습니다. 테스트가 실패하면 배포하지 말고 원인을 고치세요. 빌드 폴더가 이미 있으면 다른 이름을 쓰세요. <code>git push</code>는 개발자가 검수·커밋한 작업 branch에만 사용합니다. GitHub에서 <code>builtin-imagegen</code> → <code>main</code> PR을 열어 변경 파일과 테스트를 확인한 뒤 병합하세요. <strong><code>main</code>에 직접 push하거나 <code>scripts/publish.ps1</code>을 일반 사용자가 실행하지 마세요.</strong> 이 프로젝트에는 사용자 API 키 환경 변수가 필요하지 않습니다. 설치 시 로그인은 Codex가 처리합니다.</p>
+<p>Ruff는 개발자용 검사 도구입니다. 없으면 <code>python -m pip install ruff</code>로 설치하세요. 일반 사용자에게는 필요하지 않습니다. 테스트가 실패하면 배포하지 말고 원인을 고치세요. 빌드 폴더가 이미 있으면 다른 이름을 쓰세요. 개발자는 검수·커밋을 마친 <strong>현재 작업 브랜치</strong>만 원격에 push하고, 그 브랜치에서 <code>main</code>으로 향하는 PR을 열어 변경 파일과 테스트를 확인하세요. <strong><code>main</code>에 직접 push하거나 <code>scripts/publish.ps1</code>을 일반 사용자가 실행하지 마세요.</strong> 이 프로젝트에는 사용자 API 키 환경 변수가 필요하지 않습니다. 설치 시 로그인은 Codex가 처리합니다.</p>
 <p><code>codex plugin marketplace add</code>/<code>codex plugin add</code>는 이 PC의 CLI <code>0.156.1</code> 도움말과 설치 상태에서 확인한 명령입니다. 다른 버전에서는 <code>codex plugin --help</code>를 확인하세요. 이 문서의 설치 절차는 CLI를 사용합니다. 데스크톱 앱만으로 설치하는 별도 절차는 검증하지 않았습니다.</p>
 <p><a id="quick-start"></a></p>
 <h2>4. 빠른 시작: 처음 사용하는 사람</h2>
@@ -278,15 +278,16 @@ git push origin builtin-imagegen
 <td>비공개 저장소의 <code>plugins/architectural-render-guard/</code>를 설치 대상으로 가리키는 마켓플레이스 설정.</td>
 </tr>
 <tr>
+<td><code>plugins/architectural-render-guard/</code></td>
+<td>GitHub에 포함된 실제 설치용 플러그인 파일.</td>
+</tr>
+<tr>
 <td><code>skills/architectural-render-guard/SKILL.md</code></td>
 <td>Codex 에이전트의 이미지 작업 순서.</td>
 </tr>
 <tr>
 <td><code>scripts/render_guard.py</code> / <code>scripts/builtin_guard.py</code></td>
 <td>사용자 CLI / 보조 로직.</td>
-</tr>
-<tr>
-<td><code>plugins/architectural-render-guard/</code></td><td>GitHub에 포함된 실제 설치용 플러그인 파일.</td>
 </tr>
 <tr>
 <td><code>scripts/build_local_marketplace.py</code></td>
@@ -327,16 +328,16 @@ git push origin builtin-imagegen
 </thead>
 <tbody>
 <tr>
-<td><code>codex</code> 또는 <code>python</code> 명령을 찾을 수 없음</td>
-<td>공식 설치를 완료하고 PowerShell을 새로 연 뒤 <code>codex --version</code>, <code>python --version</code>을 다시 실행하세요.</td>
+<td><code>codex</code>, <code>git</code> 또는 <code>python</code> 명령을 찾을 수 없음</td>
+<td>해당 프로그램의 공식 설치를 완료하고 PowerShell을 새로 연 뒤 <code>codex --version</code>, <code>git --version</code>, <code>python --version</code>을 다시 실행하세요.</td>
 </tr>
 <tr>
 <td><code>Pillow is missing</code> / <code>No module named PIL</code></td>
-<td>프로젝트 폴더에서 <code>python -m pip install -r requirements.txt</code>를 실행하세요. 설치에 사용한 <code>python</code>과 실행에 사용한 <code>python</code>이 같아야 합니다.</td>
+<td>저장소 최상위 폴더가 있으면 <code>python -m pip install -r requirements.txt</code>, 플러그인만 설치했다면 <code>python -m pip install &quot;Pillow&gt;=10,&lt;13&quot;</code>을 실행하세요. 설치와 작업에 같은 <code>python</code>을 사용해야 합니다.</td>
 </tr>
 <tr>
 <td>플러그인이 목록에 없거나 API 키를 요청함</td>
-<td><code>codex plugin list</code>에서 이름 끝이 <code>@architectural-render-guard-keyless-local</code>인지 확인하세요. 공개 항목과 혼동하지 말고 새 Codex 작업을 시작하세요.</td>
+<td>GitHub에서 직접 설치했다면 <code>codex plugin list</code>에 <code>architectural-render-guard@architectural-render-guard</code>가 있어야 합니다. 로컬 패키지로 설치했다면 끝이 <code>@architectural-render-guard-keyless-local</code>인지 확인하세요. 공개 원본과 혼동하지 말고 새 Codex 작업을 시작하세요.</td>
 </tr>
 <tr>
 <td>내장 이미지 도구를 사용할 수 없음</td>
@@ -384,7 +385,7 @@ git push origin builtin-imagegen
 <summary>펼쳐 보기: 현재 로컬 무키 버전에서 달라진 점</summary>
 <div>
 <p>기존 외부 이미지 API/Gemini 경로 대신 Codex 내장 이미지 생성 도구를 사용하는 준비 → 생성 → 마무리 흐름으로 바꿨습니다. 사용자 API 키는 요구하지 않습니다.</p>
-<ul><li>새 이미지와 기존 이미지 편집, 여러 참고 이미지, 건물 보존 지시, RGBA 마스크 합성, 입력·출력 미리보기, 시도별 결과 기록을 제공합니다.</li><li>실제 출력 비율·크기를 기록하고 명시한 픽셀 크기가 다르면 실패로 표시합니다. 내장 도구의 정확한 2K 크기와 의미적 보존은 보장하지 않습니다.</li><li>비공개 저장소 배포, Apache 2.0 새 기여분 라이선스, 원본 MIT 고지 보존, 로컬 패키지 빌더와 자동 테스트를 반영했습니다.</li></ul>
+<ul><li>새 이미지와 기존 이미지 편집, 여러 참고 이미지, 건물 보존 지시, RGBA 마스크 합성, 입력·출력 미리보기, 시도별 결과 기록을 제공합니다.</li><li>실제 출력 비율·크기를 기록하고 명시한 픽셀 크기가 다르면 실패로 표시합니다. 내장 도구의 정확한 2K 크기와 의미적 보존은 보장하지 않습니다.</li><li>비공개 GitHub 마켓플레이스에서 플러그인 직접 설치를 확인했고, 로컬 패키지 빌더와 자동 테스트를 반영했습니다. 새 기여분은 Apache 2.0이며 원본 MIT 고지를 보존합니다.</li></ul>
 </div>
 </details>
 <p><a id="legal"></a></p>
