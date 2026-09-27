@@ -30,7 +30,7 @@ This plugin helps you create or edit architectural images with **Codex's built-i
 - **Local partial edits:** A same-size RGBA PNG mask makes **transparent pixels editable** and restores opaque pixels from the original at the end. Inspect the seam by eye.
 - **Review material:** Input and output previews, actual output dimensions, aspect-ratio checks, and errors are saved. A person must compare building details with the original.
 
-**Limits:** The default `2K` is a request, not an output guarantee. The actual built-in-tool result is measured afterward. A prior live check produced `1672×941`. Exact pixels, perfect preservation of every building element, and streaming partial images are not guaranteed. You may upscale an approved result in another tool.
+**Limits:** The default `2K` is a request, not an output guarantee. The actual built-in-tool result is measured afterward. A live generation and edit on 2026-09-27 each produced `1672×941`. Exact pixels, perfect preservation of every building element, and streaming partial images are not guaranteed. You may upscale an approved result in another tool.
 
 <a id="prerequisites"></a>
 ## 2. Prerequisites and downloads
@@ -42,9 +42,10 @@ This plugin helps you create or edit architectural images with **Codex's built-i
 | Codex CLI | Runs the `codex plugin` installation commands; you can work in the desktop app afterward. | Follow the Windows path in the [official Codex CLI guide](https://learn.chatgpt.com/docs/codex/cli). |
 | Python and pip | Run the local preparation and review scripts. | Install from [Python's official downloads](https://www.python.org/downloads/) and check the PATH option. |
 | Pillow | Reads images and creates previews, masks, and PNG files. | Install with the `requirements.txt` command below. |
+| Git (optional) | Downloads the private repository by command or sends developer changes. | Install [Git for Windows](https://git-scm.com/download/win). Ordinary users receiving an archive do not need it. |
 | Input image | Needed only when editing an existing building. | Prepare a PNG/JPEG or other supported image you own or have permission to use. |
 
-**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
+**Getting the keyless project:** Use this local folder or, after receiving private-repository access, run `git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git`. With access, you can also use Code → Download ZIP on the GitHub repository. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that `.codex-plugin/plugin.json` describes `Keyless` and `Codex built-in`; do not run installers from unknown sources.
 
 PowerShell is Windows' command window. Open **PowerShell** from Start and paste each command below. Keep quotes around paths with spaces. The example `D:\...` is the current PC's folder; replace it with the real path on another PC.
 
@@ -66,15 +67,25 @@ If `codex` or `python` is not found, finish installing it and open a fresh Power
 ### 3-2. Build and install the marketplace from the current local source
 
 ```powershell
-python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
+$marketplaceDir = Join-Path (Get-Location) ('outputs\keyless-marketplace-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+python scripts/build_local_marketplace.py --out-dir $marketplaceDir
+codex plugin marketplace add $marketplaceDir
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 ```
 
-The builder prints the actual `marketplace_root` to register. If the output folder already exists, the builder refuses to overwrite it; choose a **new folder name**, such as `outputs/keyless-marketplace-local-2`. Confirm that `architectural-render-guard@architectural-render-guard-keyless-local` appears as `installed, enabled`. Distinguish it from the public upstream entry. Open a **new Codex task** so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to `codex plugin marketplace add`.
+The output folder name includes the current time to avoid an existing folder. If two runs in the same second collide, choose a different name and retry. Keep using the `$marketplaceDir` variable in the **same PowerShell window**. The builder prints the actual `marketplace_root` to register and refuses to overwrite an existing folder. Confirm that `architectural-render-guard@architectural-render-guard-keyless-local` appears as `installed, enabled`. Distinguish it from the public upstream entry. Open a **new Codex task** so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to `codex plugin marketplace add`.
 
-### 3-3. Developer testing and private repository delivery
+### 3-3. Check local readiness
+
+```powershell
+python scripts/render_guard.py --init --no-install
+python scripts/render_guard.py --list-formats
+```
+
+`--init` checks the local skill file and Pillow. It **does not test access to the built-in image tool**. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.
+
+### 3-4. Developer testing and private repository delivery
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -85,18 +96,9 @@ git status --short
 git push origin builtin-imagegen
 ```
 
-If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a `builtin-imagegen` → `main` PR on GitHub, review changed files and tests, then merge it. **Do not push directly to `main` or run `scripts/publish.ps1` during normal use.** This project needs no user API-key environment variable. Codex handles sign-in.
+Ruff is a developer lint tool. If missing, install it with `python -m pip install ruff`; ordinary users do not need it. If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a `builtin-imagegen` → `main` PR on GitHub, review changed files and tests, then merge it. **Do not push directly to `main` or run `scripts/publish.ps1` during normal use.** This project needs no user API-key environment variable. Codex handles sign-in.
 
 The `codex plugin marketplace add` and `codex plugin add` syntax was checked against this PC's CLI `0.156.1` help and installation status. Check `codex plugin --help` if your version differs. This documented installation uses the CLI; a separate desktop-only installation path was not verified.
-
-### 3-3. Check local readiness
-
-```powershell
-python scripts/render_guard.py --init --no-install
-python scripts/render_guard.py --list-formats
-```
-
-`--init` checks the local skill file and Pillow. It **does not test access to the built-in image tool**. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.
 
 <a id="quick-start"></a>
 ## 4. Quick start for first-time users

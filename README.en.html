@@ -54,7 +54,7 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <li><strong>Local partial edits:</strong> A same-size RGBA PNG mask makes <strong>transparent pixels editable</strong> and restores opaque pixels from the original at the end. Inspect the seam by eye.</li>
 <li><strong>Review material:</strong> Input and output previews, actual output dimensions, aspect-ratio checks, and errors are saved. A person must compare building details with the original.</li>
 </ul>
-<p><strong>Limits:</strong> The default <code>2K</code> is a request, not an output guarantee. The actual built-in-tool result is measured afterward. A prior live check produced <code>1672×941</code>. Exact pixels, perfect preservation of every building element, and streaming partial images are not guaranteed. You may upscale an approved result in another tool.</p>
+<p><strong>Limits:</strong> The default <code>2K</code> is a request, not an output guarantee. The actual built-in-tool result is measured afterward. A live generation and edit on 2026-09-27 each produced <code>1672×941</code>. Exact pixels, perfect preservation of every building element, and streaming partial images are not guaranteed. You may upscale an approved result in another tool.</p>
 <p><a id="prerequisites"></a></p>
 <h2>2. Prerequisites and downloads</h2>
 <table>
@@ -92,13 +92,18 @@ details { padding: .8rem 1rem; border: 1px solid #cbd5df; border-radius: 8px; } 
 <td>Install with the <code>requirements.txt</code> command below.</td>
 </tr>
 <tr>
+<td>Git (optional)</td>
+<td>Downloads the private repository by command or sends developer changes.</td>
+<td>Install <a href="https://git-scm.com/download/win">Git for Windows</a>. Ordinary users receiving an archive do not need it.</td>
+</tr>
+<tr>
 <td>Input image</td>
 <td>Needed only when editing an existing building.</td>
 <td>Prepare a PNG/JPEG or other supported image you own or have permission to use.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Getting the keyless project:</strong> Use this local folder or, after receiving private-repository access, run <code>git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git</code>. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that <code>.codex-plugin/plugin.json</code> describes <code>Keyless</code> and <code>Codex built-in</code>; do not run installers from unknown sources.</p>
+<p><strong>Getting the keyless project:</strong> Use this local folder or, after receiving private-repository access, run <code>git clone https://github.com/sodam-ai/SoDam-RenderBoss-Codex.git</code>. With access, you can also use Code → Download ZIP on the GitHub repository. Without access, ask the owner for a package/archive. Do not use public upstream as the keyless download. Check that <code>.codex-plugin/plugin.json</code> describes <code>Keyless</code> and <code>Codex built-in</code>; do not run installers from unknown sources.</p>
 <p>PowerShell is Windows' command window. Open <strong>PowerShell</strong> from Start and paste each command below. Keep quotes around paths with spaces. The example <code>D:\...</code> is the current PC's folder; replace it with the real path on another PC.</p>
 <p><a id="installation"></a></p>
 <h2>3. Installation</h2>
@@ -111,13 +116,19 @@ python -m pip install -r requirements.txt
 </code></pre>
 <p>If <code>codex</code> or <code>python</code> is not found, finish installing it and open a fresh PowerShell window. This project's Python dependency is <code>Pillow&gt;=10,&lt;13</code>. Install it explicitly as shown instead of relying on <code>--init</code> to install it automatically. Installing Python and Pillow may need a download.</p>
 <h3>3-2. Build and install the marketplace from the current local source</h3>
-<pre><code class="language-powershell">python scripts/build_local_marketplace.py --out-dir outputs/keyless-marketplace-local
-codex plugin marketplace add 'D:\AI_Dev_Work\2026y\26y_09m_28d_SoDam-RenderBoss-Codex\outputs\keyless-marketplace-local'
+<pre><code class="language-powershell">$marketplaceDir = Join-Path (Get-Location) ('outputs\keyless-marketplace-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+python scripts/build_local_marketplace.py --out-dir $marketplaceDir
+codex plugin marketplace add $marketplaceDir
 codex plugin add architectural-render-guard@architectural-render-guard-keyless-local
 codex plugin list
 </code></pre>
-<p>The builder prints the actual <code>marketplace_root</code> to register. If the output folder already exists, the builder refuses to overwrite it; choose a <strong>new folder name</strong>, such as <code>outputs/keyless-marketplace-local-2</code>. Confirm that <code>architectural-render-guard@architectural-render-guard-keyless-local</code> appears as <code>installed, enabled</code>. Distinguish it from the public upstream entry. Open a <strong>new Codex task</strong> so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to <code>codex plugin marketplace add</code>.</p>
-<h3>3-3. Developer testing and private repository delivery</h3>
+<p>The output folder name includes the current time to avoid an existing folder. If two runs in the same second collide, choose a different name and retry. Keep using the <code>$marketplaceDir</code> variable in the <strong>same PowerShell window</strong>. The builder prints the actual <code>marketplace_root</code> to register and refuses to overwrite an existing folder. Confirm that <code>architectural-render-guard@architectural-render-guard-keyless-local</code> appears as <code>installed, enabled</code>. Distinguish it from the public upstream entry. Open a <strong>new Codex task</strong> so the plugin skill loads. If you received the built package on another PC, skip the build command and pass the extracted marketplace root to <code>codex plugin marketplace add</code>.</p>
+<h3>3-3. Check local readiness</h3>
+<pre><code class="language-powershell">python scripts/render_guard.py --init --no-install
+python scripts/render_guard.py --list-formats
+</code></pre>
+<p><code>--init</code> checks the local skill file and Pillow. It <strong>does not test access to the built-in image tool</strong>. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.</p>
+<h3>3-4. Developer testing and private repository delivery</h3>
 <pre><code class="language-powershell">python -m unittest discover -s tests -v
 python -m ruff check scripts tests
 python -m compileall -q scripts tests
@@ -125,13 +136,8 @@ python scripts/build_local_marketplace.py --out-dir outputs/release-check
 git status --short
 git push origin builtin-imagegen
 </code></pre>
-<p>If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a <code>builtin-imagegen</code> → <code>main</code> PR on GitHub, review changed files and tests, then merge it. <strong>Do not push directly to <code>main</code> or run <code>scripts/publish.ps1</code> during normal use.</strong> This project needs no user API-key environment variable. Codex handles sign-in.</p>
+<p>Ruff is a developer lint tool. If missing, install it with <code>python -m pip install ruff</code>; ordinary users do not need it. If a test fails, fix it before delivery. Choose a new build folder if the destination exists. The developer pushes only a reviewed, committed working branch. Open a <code>builtin-imagegen</code> → <code>main</code> PR on GitHub, review changed files and tests, then merge it. <strong>Do not push directly to <code>main</code> or run <code>scripts/publish.ps1</code> during normal use.</strong> This project needs no user API-key environment variable. Codex handles sign-in.</p>
 <p>The <code>codex plugin marketplace add</code> and <code>codex plugin add</code> syntax was checked against this PC's CLI <code>0.156.1</code> help and installation status. Check <code>codex plugin --help</code> if your version differs. This documented installation uses the CLI; a separate desktop-only installation path was not verified.</p>
-<h3>3-3. Check local readiness</h3>
-<pre><code class="language-powershell">python scripts/render_guard.py --init --no-install
-python scripts/render_guard.py --list-formats
-</code></pre>
-<p><code>--init</code> checks the local skill file and Pillow. It <strong>does not test access to the built-in image tool</strong>. Requesting a real image in a new Codex task checks that part. This plugin alone cannot generate an image without account access and connectivity.</p>
 <p><a id="quick-start"></a></p>
 <h2>4. Quick start for first-time users</h2>
 <ol>
